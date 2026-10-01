@@ -1,0 +1,27 @@
+{
+  "name": "wowhead-quest-comments",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "fetch": "tsx scripts/fetch-comments.ts",
+    "process": "tsx scripts/process-comments.ts",
+    "generate": "tsx scripts/generate-lua.ts",
+    "build:data": "npm run fetch && npm run process && npm run generate",
+    "check": "tsc --noEmit",
+    "test": "tsx --test scripts/pipeline.test.ts"
+  },
+  "dependencies": {
+    "entities": "^8.1.0"
+  },
+  "devDependencies": {
+    "@types/luaparse": "^0.2.13",
+    "@types/node": "^26.6.3",
+    "luaparse": "^0.3.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
