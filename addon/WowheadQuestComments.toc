@@ -1,0 +1,9 @@
+## Interface: 120100
+## Title: Wowhead Quest Comments
+## Notes: Shows useful Wowhead comments for quests
+## Author: m4rv & philarmino
+## Version: 0.1.0
+## SavedVariables: WowheadQuestCommentsSettings
+
+Data.lua
+Core.lua
