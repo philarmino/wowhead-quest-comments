@@ -1,6 +1,6 @@
 import { decodeHTML } from 'entities';
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -46,6 +46,17 @@ export function options() {
     maxRequests, delayMs, concurrency, html: values.html };
 }
 export const dataPath = (kind: 'raw' | 'processed', id: number) => resolve(root, 'data', kind, `${id}.json`);
+export async function cachedQuestIds(kind: 'raw' | 'processed'): Promise<number[]> {
+  let names: string[];
+  try { names = await readdir(resolve(root, 'data', kind)); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  }
+  return names.filter(name => /^[1-9]\d*\.json$/.test(name))
+    .map(name => Number(name.slice(0, -5)))
+    .filter(Number.isSafeInteger).sort((a, b) => a - b);
+}
 export async function questIds(allAreas = false): Promise<number[]> {
   if (allAreas) {
     const source = await readJson(resolve(root, 'scripts/quest-ids.json'));

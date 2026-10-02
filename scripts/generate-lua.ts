@@ -1,10 +1,14 @@
 import { resolve } from 'node:path';
 import luaparse from 'luaparse';
-import { atomicWrite, dataPath, generateLua, isObject, options, questIds, readJson, root, type ProcessedData } from './pipeline.ts';
+import { atomicWrite, cachedQuestIds, dataPath, generateLua, isObject, options, questIds, readJson, root, type ProcessedData } from './pipeline.ts';
 
 async function main() {
-  const { questId } = options();
-  const ids = questId === undefined ? await questIds() : [questId];
+  const { questId, allAreas, areas, expansion } = options();
+  if (allAreas || areas.length || expansion !== undefined)
+    throw new Error('generate supports --quest only; without it, all locally processed quests are included.');
+  const ids = questId === undefined
+    ? [...new Set([...(await questIds()), ...(await cachedQuestIds('processed'))])].sort((a, b) => a - b)
+    : [questId];
   const datasets: ProcessedData[] = [];
   for (const id of ids) {
     try {
