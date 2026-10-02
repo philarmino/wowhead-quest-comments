@@ -17,6 +17,19 @@ Copy the contents of `addon/` into `_retail_/Interface/AddOns/WowheadQuestCommen
 
 Diagnostics use the same database as the display. A missing database is shown as a loading error. Preview and specific quest IDs use the same lookup, supporting both numeric and textual keys.
 
+## Releases
+
+Pushing a version tag such as `v0.2.5` starts the [addon release workflow](.github/workflows/release.yml). It checks that the tag matches the version in `addon/WowheadQuestComments.toc` and `addon/Core.lua`, packages the committed `addon/` files into `WowheadQuestComments-v0.2.5.zip`, and attaches that ZIP to a GitHub Release. The ZIP already contains the `WowheadQuestComments/` folder, so extract it directly into `_retail_/Interface/AddOns/`.
+
+Before tagging, update both addon version strings and commit the generated `addon/Data.lua`. Then create and push an annotated tag:
+
+```bash
+git tag -a v0.2.5 -m "Wowhead Quest Comments 0.2.5"
+git push origin main v0.2.5
+```
+
+The workflow can also be rerun manually for an existing tag. GitHub adds its own source-code archives to every release; the addon ZIP is the only uploaded release asset.
+
 ## Generate comments
 
 Requires Node.js 22 or later.

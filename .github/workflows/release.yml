@@ -1,0 +1,66 @@
+name: Addon release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to package
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out tagged files
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Build and check installable ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "Expected a tag such as v0.2.5, got $RELEASE_TAG" >&2
+            exit 1
+          }
+          version="${RELEASE_TAG#v}"
+          grep -Fxq "## Version: $version" addon/WowheadQuestComments.toc
+          grep -Fxq "local CORE_BUILD = \"$version\"" addon/Core.lua
+          test -s addon/Data.lua
+
+          mkdir -p dist
+          archive="dist/WowheadQuestComments-${RELEASE_TAG}.zip"
+          git archive --format=zip --prefix=WowheadQuestComments/ --output="$archive" HEAD:addon
+          unzip -t "$archive" >/dev/null
+          diff -u <(printf '%s\n' \
+            'WowheadQuestComments/' \
+            'WowheadQuestComments/Core.lua' \
+            'WowheadQuestComments/Data.lua' \
+            'WowheadQuestComments/WowheadQuestComments.toc' | sort) \
+            <(unzip -Z1 "$archive" | sort)
+          sha256sum "$archive"
+
+      - name: Publish release ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="dist/WowheadQuestComments-${RELEASE_TAG}.zip"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$archive" --clobber
+          else
+            gh release create "$RELEASE_TAG" "$archive" \
+              --title "Wowhead Quest Comments $RELEASE_TAG" \
+              --notes 'Extract the ZIP directly into `_retail_/Interface/AddOns/`, then run `/reload` in WoW. The archive contains the `WowheadQuestComments/` folder.' \
+              --generate-notes --verify-tag
+          fi
