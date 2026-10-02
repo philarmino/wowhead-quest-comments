@@ -1,6 +1,6 @@
 # Development handoff
 
-Updated: October 2, 2026. Addon version: 0.2.3.
+Updated: October 2, 2026. Addon version: 0.2.4.
 
 ## Working features
 
@@ -11,6 +11,7 @@ Updated: October 2, 2026. Addon version: 0.2.3.
 - `/wqc debug [QuestID]` reports the running Core version, data build ID, key types, matching entry, and active quest.
 - Ratings use signed numbers; the previous Unicode triangle did not render correctly in the WoW font. The user accepted the 0.2.2 change.
 - Version 0.2.3 makes author names smaller and muted gray, and translates interface text, script messages, and documentation into English. Its visual appearance still needs an in-game check.
+- Version 0.2.4 adds a header divider and a yellow posting date beside each author, one font size smaller. Dates preserve the source calendar date. Its visual appearance still needs an in-game check.
 
 ## Quest data
 

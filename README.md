@@ -2,7 +2,7 @@
 
 A Retail addon with locally bundled quest comments. Click the minimap comment icon to open comments for the quest with the active waypoint (supertracking). The window can be moved and resized from its bottom-right corner. Window size, position, and minimap button position are saved.
 
-Author names use smaller, muted text so the comment body remains the focus. Ratings are shown as signed numbers, such as `+84` or `-2`.
+Author names use smaller, muted text so the comment body remains the focus. The original posting date appears beside the author in yellow, one font size smaller, using `YYYY-MM-DD`. A thin line separates the window header from the comments. Ratings are shown as signed numbers, such as `+84` or `-2`.
 
 ## Installation
 

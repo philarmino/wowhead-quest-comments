@@ -24,6 +24,9 @@ function Widget:SetShown(v) self.shown=v end
 function Widget:SetText(s) self.text=s end
 function Widget:SetTextColor(r,g,b) self.textColor={r,g,b} end
 function Widget:GetStringHeight() return 20 end
+function Widget:GetStringWidth() return #(self.text or '') * 6 end
+function Widget:GetFont() return 'Fonts/FRIZQT__.TTF', 12, '' end
+function Widget:SetFont(font,size,flags) self.font={font,size,flags} end
 function Widget:SetScrollChild(child) self.scrollChild=child end
 function Widget:CreateFontString() return widget(self) end
 function Widget:CreateTexture() return widget(self) end
@@ -117,7 +120,7 @@ assert(context():find('No active quest',1,true))
 local messages, originalPrint = {}, print
 print = function(text) messages[#messages+1] = text end
 run('debug 13943')
-assert(messages[1]:find('Core 0.2.3',1,true))
+assert(messages[1]:find('Core 0.2.4',1,true))
 assert(messages[1]:find(ns.dataBuild,1,true))
 assert(messages[1]:find('Numeric/text IDs 166/0',1,true))
 assert(messages[2]:find('Quest 13943 | Entry present | Comments 2',1,true))

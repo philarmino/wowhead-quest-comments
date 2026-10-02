@@ -1,5 +1,5 @@
 local addonName, ns = ...
-local CORE_BUILD = "0.2.3"
+local CORE_BUILD = "0.2.4"
 local settings
 
 local GOLD = "|cffffd27a"
@@ -79,6 +79,12 @@ local scrollFrame = CreateFrame("ScrollFrame", nil, commentFrame, "UIPanelScroll
 scrollFrame:SetPoint("TOPLEFT", 25, -94)
 scrollFrame:SetPoint("BOTTOMRIGHT", -43, 23)
 
+local headerDivider = commentFrame:CreateTexture(nil, "ARTWORK")
+headerDivider:SetColorTexture(1, 1, 1, 0.1)
+headerDivider:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, 8)
+headerDivider:SetPoint("TOPRIGHT", scrollFrame, "TOPRIGHT", -36, 8)
+headerDivider:SetHeight(1)
+
 local scrollChild = CreateFrame("Frame", nil, scrollFrame)
 scrollChild:SetWidth(365)
 scrollChild:SetHeight(1)
@@ -104,6 +110,15 @@ local function GetRow(index)
     row.author:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
     row.author:SetWidth(270)
     row.author:SetJustifyH("LEFT")
+    row.author:SetWordWrap(false)
+
+    row.date = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local font, size, flags = row.author:GetFont()
+    row.date:SetFont(font, math.max(8, size - 1), flags)
+    row.date:SetTextColor(1, 0.82, 0)
+    row.date:SetPoint("LEFT", row.author, "RIGHT", 8, 0)
+    row.date:SetJustifyH("LEFT")
+    row.date:SetWordWrap(false)
 
     row.score = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.score:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, 0)
@@ -138,7 +153,10 @@ local function LayoutRows()
     for _, row in ipairs(rows) do
         if row:IsShown() then
             row:SetWidth(contentWidth)
-            row.author:SetWidth(contentWidth - 85)
+            row.author:SetWidth(0)
+            local dateWidth = row.date:GetStringWidth()
+            local dateSpace = dateWidth > 0 and dateWidth + 8 or 0
+            row.author:SetWidth(math.max(1, math.min(row.author:GetStringWidth(), contentWidth - 85 - dateSpace)))
             row.body:SetWidth(contentWidth)
             row:ClearAllPoints()
             row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -y)
@@ -200,6 +218,9 @@ local function ShowComments(questID)
             for index, comment in ipairs(comments) do
                 local row = GetRow(index)
                 row.author:SetText(comment.author or "Unknown")
+                -- Preserve the source calendar date without converting time zones.
+                local writtenDate = type(comment.date) == "string" and comment.date:match("^(%d%d%d%d%-%d%d%-%d%d)") or ""
+                row.date:SetText(writtenDate or "")
                 local score = tonumber(comment.score) or 0
                 row.score:SetText(GOLD .. (score > 0 and "+" or "") .. tostring(score) .. "|r")
                 row.body:SetText(comment.text or "")
