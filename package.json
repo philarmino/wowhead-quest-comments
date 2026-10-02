@@ -8,6 +8,7 @@
   },
   "scripts": {
     "fetch:quests": "tsx scripts/fetch-quest-ids.ts",
+    "fetch:expansions": "tsx scripts/fetch-area-expansions.ts",
     "fetch": "tsx scripts/fetch-comments.ts",
     "process": "tsx scripts/process-comments.ts",
     "generate": "tsx scripts/generate-lua.ts",

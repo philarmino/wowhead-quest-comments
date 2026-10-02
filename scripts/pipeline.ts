@@ -23,6 +23,8 @@ export function options() {
     quest: { type: 'string' },
     limit: { type: 'string', default: '5' },
     'all-areas': { type: 'boolean', default: false },
+    area: { type: 'string', multiple: true },
+    expansion: { type: 'string' },
     'full-refresh': { type: 'boolean', default: false },
     'max-requests': { type: 'string' },
     'delay-ms': { type: 'string', default: '2000' },
@@ -40,6 +42,7 @@ export function options() {
       !Number.isSafeInteger(concurrency) || concurrency < 1 || concurrency > 16)
     throw new Error('--quest, --limit, --max-requests and --concurrency must be positive integers; --delay-ms must be a nonnegative integer.');
   return { questId, limit, allAreas: values['all-areas'], fullRefresh: values['full-refresh'],
+    areas: values.area ?? [], expansion: values.expansion,
     maxRequests, delayMs, concurrency, html: values.html };
 }
 export const dataPath = (kind: 'raw' | 'processed', id: number) => resolve(root, 'data', kind, `${id}.json`);

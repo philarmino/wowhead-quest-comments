@@ -35,6 +35,21 @@ The command uses client credentials to fetch a token, then reads the EU Retail q
 
 This step only calls Battle.net. It does not fetch Wowhead comments or modify `addon/Data.lua`. The default comment pipeline still uses the checked-in Ashenvale source `scripts/quests-eschental.json`; pass `--all-areas` to the fetch or process command to use the new ID list.
 
+### Select areas and expansions when fetching comments
+
+`npm run fetch` can select one or more Blizzard area IDs from the cached area responses. Repeat `--area` or separate IDs with commas. The expansion filter uses a local mapping from [Wowhead's zone list](https://www.wowhead.com/zones), matched by area ID:
+
+```bash
+npm run fetch -- --area 331
+npm run fetch -- --area 331,14 --max-requests 100
+npm run fetch -- --expansion dragonflight --max-requests 100
+npm run fetch -- --area 13644 --expansion dragonflight
+```
+
+Supported expansion names are `classic`, `burning-crusade`, `wrath`, `cataclysm`, `mists-of-pandaria`, `warlords-of-draenor`, `legion`, `battle-for-azeroth`, `shadowlands`, `dragonflight`, `the-war-within`, and `midnight`. Short names such as `tbc`, `wotlk`, `mop`, `wod`, `bfa`, and `tww` also work. Areas must first be cached with `npm run fetch:quests`; the expansion mapping can be refreshed with `npm run fetch:expansions` after refreshing the Blizzard area index.
+
+The checked-in mapping covers 395 of the 440 Blizzard areas in the current index. Areas missing from Wowhead's zone list are excluded from expansion-only selections and reported in the command output. An explicit area combined with an expansion must have a matching mapping. The expansion is the zone's **“added in”** expansion, which may differ from the expansion of an individual quest in an older or reused zone.
+
 ```bash
 npm ci
 npm run build:data
