@@ -2,6 +2,8 @@
 
 Updated: October 2, 2026. Addon version: 0.2.4.
 
+The Ashenvale import and English UI were pushed to `main` in `663eb51`; the header divider and posting dates were pushed in `e0355bf`. See [CHANGELOG.md](CHANGELOG.md) for the complete release history, missing quest IDs, and validation scope.
+
 ## Working features
 
 - The user confirmed that quest comments display correctly in-game after installing the complete 0.2.1 package.
@@ -33,6 +35,8 @@ npm run test:addon
 ```
 
 The last command requires Lua 5.1. It executes the actual TOC files with WoW widget stubs and checks all generated quests, numeric and textual keys, commands, minimap clicks, and diagnostics. See `README.md` for single-quest operations, cache refreshes, and HTML imports.
+
+Latest recorded validation: TypeScript and all five pipeline tests passed for 0.2.3; all 344 Lua 5.1 display checks passed again after the 0.2.4 UI changes. The user confirmed comment display in 0.2.1 and the rating fix in 0.2.2. The newest date/divider layout has not yet been confirmed in-game.
 
 Copy the contents of `addon/` into `_retail_/Interface/AddOns/WowheadQuestComments/` and run `/reload`. Keep `Data.lua` and `Core.lua` from the same release together.
 

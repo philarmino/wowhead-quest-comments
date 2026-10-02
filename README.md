@@ -4,6 +4,8 @@ A Retail addon with locally bundled quest comments. Click the minimap comment ic
 
 Author names use smaller, muted text so the comment body remains the focus. The original posting date appears beside the author in yellow, one font size smaller, using `YYYY-MM-DD`. A thin line separates the window header from the comments. Ratings are shown as signed numbers, such as `+84` or `-2`.
 
+See [CHANGELOG.md](CHANGELOG.md) for release history, data coverage, fixes, and verification results; [DESIGN.md](DESIGN.md) for UI decisions; and [RESUME.md](RESUME.md) for the development handoff and remaining work.
+
 ## Installation
 
 Copy the contents of `addon/` into `_retail_/Interface/AddOns/WowheadQuestComments/`. The folder name must match the TOC filename. Run `/reload` after updating the addon.
