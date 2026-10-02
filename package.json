@@ -12,7 +12,8 @@
     "generate": "tsx scripts/generate-lua.ts",
     "build:data": "npm run fetch && npm run process && npm run generate",
     "check": "tsc --noEmit",
-    "test": "tsx --test scripts/pipeline.test.ts"
+    "test": "tsx --test scripts/pipeline.test.ts",
+    "test:addon": "lua5.1 scripts/addon.test.lua"
   },
   "dependencies": {
     "entities": "^8.1.0"

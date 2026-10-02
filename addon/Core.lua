@@ -1,4 +1,5 @@
-local addonName = ...
+local addonName, ns = ...
+local CORE_BUILD = "0.2.3"
 local settings
 
 local GOLD = "|cffffd27a"
@@ -47,7 +48,7 @@ end)
 
 local title = commentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 title:SetPoint("TOPLEFT", 25, -27)
-title:SetText("Questkommentare")
+title:SetText("Quest comments")
 
 local context = commentFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 context:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
@@ -98,7 +99,8 @@ local function GetRow(index)
     local row = CreateFrame("Frame", nil, scrollChild)
     row:SetWidth(355)
 
-    row.author = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    row.author = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.author:SetTextColor(0.61, 0.64, 0.69)
     row.author:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
     row.author:SetWidth(270)
     row.author:SetJustifyH("LEFT")
@@ -151,6 +153,20 @@ end
 
 commentFrame:SetScript("OnSizeChanged", LayoutRows)
 
+local function GetComments(questID)
+    if type(ns.db) ~= "table" then
+        return nil
+    end
+    local id = tonumber(questID)
+    if not id or id <= 0 or id % 1 ~= 0 then
+        return nil
+    end
+    -- Preview receives a database key; commands and tracking supply numbers.
+    -- Accept both numeric and textual keys through the same lookup.
+    local comments = ns.db[id] or ns.db[tostring(id)]
+    return type(comments) == "table" and comments or nil
+end
+
 local function ShowComments(questID)
     for _, row in ipairs(rows) do
         row:Hide()
@@ -158,18 +174,23 @@ local function ShowComments(questID)
 
     scrollFrame:SetVerticalScroll(0)
 
-    if not questID or questID == 0 then
-        context:SetText(MUTED .. "Keine aktive Quest|r")
-        emptyText:SetText("Markiere eine Quest als aktiv und öffne das Fenster erneut.")
+    if type(ns.db) ~= "table" then
+        context:SetText(MUTED .. "Comment database not loaded|r")
+        emptyText:SetText("The comment database could not be loaded. Run /wqc debug for details.")
+        emptyText:Show()
+        scrollFrame:Hide()
+    elseif not questID or questID == 0 then
+        context:SetText(MUTED .. "No active quest|r")
+        emptyText:SetText("Set a quest as active and reopen this window.")
         emptyText:Show()
         scrollFrame:Hide()
     else
-        local comments = WowheadQuestCommentsDB and WowheadQuestCommentsDB[questID]
+        local comments = GetComments(questID)
         local count = comments and #comments or 0
-        context:SetText(MUTED .. "Quest " .. questID .. "  ·  " .. count .. " Kommentare|r")
+        context:SetText(MUTED .. "Quest " .. questID .. "  ·  " .. count .. " comments|r")
 
         if count == 0 then
-            emptyText:SetText("Für diese Quest sind noch keine Kommentare gespeichert.")
+            emptyText:SetText("No comments have been saved for this quest yet.")
             emptyText:Show()
             scrollFrame:Hide()
         else
@@ -178,8 +199,9 @@ local function ShowComments(questID)
 
             for index, comment in ipairs(comments) do
                 local row = GetRow(index)
-                row.author:SetText(comment.author or "Unbekannt")
-                row.score:SetText(GOLD .. "▲ " .. tostring(comment.score or 0) .. "|r")
+                row.author:SetText(comment.author or "Unknown")
+                local score = tonumber(comment.score) or 0
+                row.score:SetText(GOLD .. (score > 0 and "+" or "") .. tostring(score) .. "|r")
                 row.body:SetText(comment.text or "")
                 row.divider:SetShown(index < count)
                 row:Show()
@@ -279,9 +301,9 @@ end)
 minimapButton:SetScript("OnEnter", function(self)
     buttonIcon:SetVertexColor(1, 0.85, 0.55)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:SetText("Wowhead Questkommentare")
-    GameTooltip:AddLine("Kommentare zur aktiven Quest anzeigen", 1, 1, 1)
-    GameTooltip:AddLine("Ziehen: Button um die Minimap bewegen", 0.7, 0.7, 0.7)
+    GameTooltip:SetText("Wowhead Quest comments")
+    GameTooltip:AddLine("Show comments for the active quest", 1, 1, 1)
+    GameTooltip:AddLine("Drag to move the button around the minimap", 0.7, 0.7, 0.7)
     GameTooltip:Show()
 end)
 minimapButton:SetScript("OnLeave", function()
@@ -317,11 +339,50 @@ loader:SetScript("OnEvent", function(self, _, loadedAddon)
 end)
 
 SLASH_WOWHEADQUESTCOMMENTS1 = "/wqc"
+local function PrintDiagnostics(questID)
+    local numbers, strings = 0, 0
+    if type(ns.db) == "table" then
+        for key in pairs(ns.db) do
+            if type(key) == "number" then numbers = numbers + 1 end
+            if type(key) == "string" then strings = strings + 1 end
+        end
+    end
+    local id = questID or 13943
+    local comments = GetComments(id)
+    print("WQC Core " .. CORE_BUILD .. " | Data " .. tostring(ns.dataBuild or "no build ID")
+        .. " | DB " .. type(ns.db) .. " | Numeric/text IDs " .. numbers .. "/" .. strings)
+    print("WQC Quest " .. id .. " | Entry " .. (comments and "present" or "missing")
+        .. " | Comments " .. (comments and #comments or 0)
+        .. " | Active quest " .. tostring(GetActiveQuestID()))
+end
+
 SlashCmdList.WOWHEADQUESTCOMMENTS = function(message)
+    message = (message or ""):match("^%s*(.-)%s*$")
+    if message == "debug" or message:match("^debug%s") then
+        PrintDiagnostics(tonumber(message:match("^debug%s+(%d+)$")))
+        return
+    end
     if message == "preview" then
-        local sampleQuestID = WowheadQuestCommentsDB and next(WowheadQuestCommentsDB)
+        local sampleQuestID
+        if type(ns.db) == "table" then
+            for id in pairs(ns.db) do
+                local comments = GetComments(id)
+                if comments and #comments > 0 and (not sampleQuestID or tonumber(id) < sampleQuestID) then
+                    sampleQuestID = tonumber(id)
+                end
+            end
+        end
         ShowComments(sampleQuestID)
-    else
+        return
+    end
+
+    local requestedQuestID = tonumber(message:match("^(%d+)$")
+        or message:match("^preview%s+(%d+)$") or message:match("^quest%s+(%d+)$"))
+    if requestedQuestID and requestedQuestID > 0 then
+        ShowComments(requestedQuestID)
+    elseif message == "" then
         ToggleComments()
+    else
+        print("WQC: /wqc, /wqc <QuestID>, /wqc preview [QuestID], /wqc debug [QuestID]")
     end
 end

@@ -1,57 +1,49 @@
-# Weiterarbeit: mehrere Quests unterstützen
+# Development handoff
 
-Stand: 2. Oktober 2026. Branch: `main`. Letzter Implementierungscommit: `6949162`.
+Updated: October 2, 2026. Addon version: 0.2.3.
 
-## Was bereits funktioniert
+## Working features
 
-- Die Oberfläche wurde im Spiel geprüft und vom Nutzer akzeptiert.
-- Der Minimap-Button öffnet Kommentare zur Quest mit dem aktiven Wegweiser (Supertracking).
-- Fensterposition, Fenstergröße und Minimap-Button-Position werden gespeichert.
-- Die drei TypeScript-Skripte für Abruf, Aufbereitung und Lua-Generierung funktionieren.
-- Für Quest **14435** wurden 19 Hauptkommentare abgerufen und fünf ausgewählt. Der Nutzer hat die echten Daten im Spiel erfolgreich getestet.
-- TypeScript-Prüfung und alle fünf Tests bestanden. Der Implementierungsstand ist nach `main` gepusht.
+- The user confirmed that quest comments display correctly in-game after installing the complete 0.2.1 package.
+- The minimap button opens comments for the quest with the active waypoint (supertracking).
+- Window position, window size, and minimap button position are saved.
+- Preview, explicit quest IDs, and minimap clicks use the same lookup, supporting numeric and textual database keys.
+- `/wqc debug [QuestID]` reports the running Core version, data build ID, key types, matching entry, and active quest.
+- Ratings use signed numbers; the previous Unicode triangle did not render correctly in the WoW font. The user accepted the 0.2.2 change.
+- Version 0.2.3 makes author names smaller and muted gray, and translates interface text, script messages, and documentation into English. Its visual appearance still needs an in-game check.
 
-## Aktuelle Einschränkung
+## Quest data
 
-Die Generierung ersetzt `addon/Data.lua` vollständig durch die Daten einer einzigen Quest. Mehrere Quests werden noch nicht zusammengeführt. Rohdaten und aufbereitete JSON-Dateien liegen lokal unter `data/` und sind nicht in Git enthalten.
+- `scripts/quests-eschental.json` contains the supplied Blizzard response with 165 Ashenvale quest IDs. Original German quest names are retained as source data.
+- The default pipeline also includes the previously supported quest 14435, resulting in 166 database entries.
+- The initial batch fetched comments for 141 Ashenvale quests. Wowhead returned HTTP 403 for the remaining 24; those IDs have empty entries. Quest 14435 was loaded from cache.
+- Quest 13943 has two selected comments.
+- Raw and processed JSON files are cached under `data/`, which is excluded from Git. The generated `addon/Data.lua` is included in Git.
+- The data is passed from `Data.lua` to `Core.lua` through the shared addon namespace (`ns.db`).
 
-## Nächste Schritte
-
-1. **Zentrale Quest-Liste anlegen.** Zunächst wenige IDs aufnehmen; 14435 bleibt dabei. Weitere Test-IDs müssen noch ausgewählt werden.
-2. **Abruf für mehrere Quests ermöglichen.** Die Liste in einem Durchlauf verarbeiten und den vorhandenen Cache je Quest nutzen. Netzwerkabrufe mit Abstand ausführen.
-3. **Gemeinsame Lua-Datei erzeugen.** Alle aufbereiteten Quests nach Quest-ID sortiert in `WowheadQuestCommentsDB` zusammenführen. Ausgabe weiterhin vor dem atomaren Ersetzen prüfen.
-4. **Fehler pro Quest behandeln.** Bei einem fehlgeschlagenen Abruf vorhandene gültige Daten erhalten und den Fehler mit Quest-ID melden. Bestehende Einträge dürfen auch dann nicht verschwinden, wenn lokal kein Cache vorliegt. Neue Quests ohne gültige Daten klar als fehlgeschlagen ausweisen. Einen leeren erfolgreichen Datensatz von einem Abruffehler unterscheiden.
-5. **Gezielt testen.** Mehrere Quests in der Ausgabe, unveränderte Cache-Nutzung und Datenerhalt bei einem einzelnen Fehler prüfen. Danach im Spiel zwischen zwei Quests mit Kommentaren und einer ohne Daten wechseln. Das Fenster jeweils erneut öffnen; bisher aktualisiert es beim Öffnen.
-
-Erst nach diesem Test den Questbestand gezielt erweitern. Der Umfang einer späteren vollständigen Quest-Liste ist noch offen.
-
-## Befehle für den bestehenden Stand
+## Commands
 
 ```bash
 npm ci
 npm run build:data
 npm run check
 npm test
+npm run test:addon
 ```
 
-`build:data` verarbeitet derzeit standardmäßig nur Quest 14435. Einzelne Schritte und Optionen sind in `README.md` beschrieben.
+The last command requires Lua 5.1. It executes the actual TOC files with WoW widget stubs and checks all generated quests, numeric and textual keys, commands, minimap clicks, and diagnostics. See `README.md` for single-quest operations, cache refreshes, and HTML imports.
 
-Für den Spieltest die erzeugte `addon/Data.lua` nach `_retail_/Interface/AddOns/WowheadQuestComments/` kopieren und `/reload` ausführen. `/wqc preview` zeigt vorhandene Daten; der Minimap-Button beziehungsweise `/wqc` verwendet die aktive Quest.
+Copy the contents of `addon/` into `_retail_/Interface/AddOns/WowheadQuestComments/` and run `/reload`. Keep `Data.lua` and `Core.lua` from the same release together.
 
-## Wichtige Dateien
+## Remaining work and limitations
 
-- `scripts/fetch-comments.ts`: Abruf oder HTML-Import, Cache.
-- `scripts/process-comments.ts`: Auswahl der fünf bestbewerteten geeigneten Hauptkommentare.
-- `scripts/generate-lua.ts`: geprüfte Lua-Ausgabe.
-- `scripts/pipeline.ts`: gemeinsame Datenformate, Validierung, Textaufbereitung und Escaping.
-- `scripts/pipeline.test.ts`: bestehende Tests.
-- `addon/Core.lua`: Oberfläche und Auswahl der aktiven Quest.
-- `addon/Data.lua`: generierte Kommentardaten.
+- Retry the 24 missing Wowhead pages when access is available; valid existing caches will be reused.
+- A high rating does not guarantee that a comment is current or helpful. Selection uses rating, then comment ID, excludes replies and deleted/outdated comments, and preserves full text.
+- `generate --quest <ID>` replaces the output with only that quest. Use the default generator for the full list.
+- Generation relies on local processed files. A missing local processed file produces an empty entry, even if an older Lua output contained comments for that quest. Preserving such entries independently of the cache remains a follow-up.
+- The window updates when opened; changing the tracked quest while it is already open does not refresh the displayed comments automatically.
+- Runtime checks do not replace an in-game layout check.
 
-## Bisherige Entscheidungen
+## Debugging evidence
 
-- Lange Kommentare vollständig erhalten und im Fenster scrollen.
-- Gelöschte, als veraltet markierte und eingerückte Kommentare sowie Duplikate ausschließen; Antworten nicht übernehmen.
-- Bewertung ist das Auswahlkriterium, keine Garantie für Aktualität oder Nützlichkeit.
-- Keine Spielversion aus dem Kommentardatum ableiten.
-- Bei unklaren Produktentscheidungen vor der Umsetzung nachfragen.
+The reported behavior (preview works, numeric quest IDs return zero comments) was reproduced using textual database keys and fixed by sharing one lookup between all entry points. The supplied generated data itself used numeric keys, so this was not established as the exact cause in the user's earlier installation. The user subsequently confirmed that the complete 0.2.1 package worked. Earlier claims about automatic per-addon global isolation were not established and should not be used as a diagnosis.

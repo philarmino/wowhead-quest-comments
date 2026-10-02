@@ -1,35 +1,42 @@
 # Wowhead Quest Comments
 
-Retail-Addon mit lokal mitgelieferten Questkommentaren. Ein Klick auf das Kommentar-Symbol an der Minimap öffnet die Kommentare zur Quest mit dem aktiven Wegweiser. Das Fenster ist verschiebbar und unten rechts skalierbar; Fenstergröße, Fensterposition und Minimap-Position werden gespeichert.
+A Retail addon with locally bundled quest comments. Click the minimap comment icon to open comments for the quest with the active waypoint (supertracking). The window can be moved and resized from its bottom-right corner. Window size, position, and minimap button position are saved.
 
-## Installation und Test
+Author names use smaller, muted text so the comment body remains the focus. Ratings are shown as signed numbers, such as `+84` or `-2`.
 
-Den Inhalt von `addon/` nach `_retail_/Interface/AddOns/WowheadQuestComments/` kopieren. Der Ordnername muss zur TOC-Datei passen. Nach dem Aktualisieren `/reload` ausführen.
+## Installation
 
-`/wqc preview` zeigt Beispieldaten aus der aktuell installierten Datenbank, `/wqc` öffnet oder schließt die Anzeige zur aktiven Quest.
+Copy the contents of `addon/` into `_retail_/Interface/AddOns/WowheadQuestComments/`. The folder name must match the TOC filename. Run `/reload` after updating the addon.
 
-## Kommentare erzeugen
+- `/wqc`: toggle comments for the active quest.
+- `/wqc preview`: show the lowest-ID quest with comments in the installed database.
+- `/wqc 13943`, `/wqc quest 13943`, or `/wqc preview 13943`: open comments for that quest directly.
+- `/wqc debug 13943`: print the loaded Core version, data build ID, counts of numeric and textual quest keys, the matching database entry, and the active quest in chat.
 
-Voraussetzung: Node.js 22 oder neuer.
+Diagnostics use the same database as the display. A missing database is shown as a loading error. Preview and specific quest IDs use the same lookup, supporting both numeric and textual keys.
+
+## Generate comments
+
+Requires Node.js 22 or later.
 
 ```bash
 npm ci
 npm run build:data
 ```
 
-Der erste Durchlauf ist auf **Quest 14435** eingestellt. Die Pipeline:
+The default run processes **165 Ashenvale quest IDs from `scripts/quests-eschental.json`**, plus the previously included quest 14435. The list is the supplied Blizzard response for Ashenvale (`area/331`); its German area and quest names are preserved as source data.
 
-1. `npm run fetch`: lädt die englische Retail-Seite und liest das eingebettete JSON-Array `lv_comments0`. Speichert die Rohdaten mit Quell-URL und Abrufzeit unter `data/raw/14435.json`.
-2. `npm run process`: entfernt gelöschte, als veraltet markierte und eingerückte Kommentare sowie Duplikate. Wählt die fünf bestbewerteten Hauptkommentare, ohne Antworten. Speichert das Ergebnis unter `data/processed/14435.json`.
-3. `npm run generate`: erzeugt `addon/Data.lua`, prüft die Lua-5.1-Syntax und ersetzt die Datei erst nach erfolgreicher Prüfung atomar.
+1. `npm run fetch`: load each English Retail page and extract the embedded `lv_comments0` JSON array. Store raw data with the source URL and fetch timestamp in `data/raw/{QuestID}.json`. Reuse valid cached data; fetch new pages sequentially with a one-second delay between requests.
+2. `npm run process`: exclude deleted, outdated, indented, and duplicate comments. Select up to five top-rated main comments, without replies. Store results in `data/processed/{QuestID}.json`.
+3. `npm run generate`: combine the available processed data, add empty entries for missing quest IDs, validate Lua 5.1 syntax, and atomically replace `addon/Data.lua`. The generated data includes a deterministic build ID for diagnostics.
 
-**Die aktuelle Ausgabe enthält genau die angegebene Quest und ersetzt die gesamte `Data.lua`.** Der frühere Platzhaltereintrag für Quest 12345 entfällt. Eine Zusammenführung mehrerer Quests ist noch nicht implementiert.
+A failed fetch does not stop the remaining quests or replace their existing cache files. IDs without processed data receive an empty comment list. The addon displays “No comments have been saved for this quest yet.” for these entries. Running the pipeline again retries quests without raw data.
 
-Die Skripte laufen außerhalb von WoW. Anschließend die erzeugte `Data.lua` in den installierten Addon-Ordner kopieren und `/reload` ausführen.
+The scripts run outside WoW. Copy the generated `Data.lua` into the installed addon folder and run `/reload`.
 
-## Cache und Optionen
+## Cache and options
 
-Ein vorhandener Rohdaten-Cache wird ohne weiteren Netzwerkabruf verwendet. Bewusst neu laden:
+Valid raw cache files are reused without another network request. Process a single quest explicitly, or omit `--quest` to use the full list:
 
 ```bash
 npm run fetch -- --quest 14435 --refresh
@@ -37,25 +44,35 @@ npm run process -- --quest 14435 --limit 5
 npm run generate -- --quest 14435
 ```
 
-Eine bereits gespeicherte vollständige Wowhead-HTML-Seite kann importiert werden:
+`generate --quest <ID>` writes only that quest to `Data.lua`. Use `npm run generate` without `--quest` for the full database.
+
+You can import a previously saved complete Wowhead HTML page:
 
 ```bash
-npm run fetch -- --quest 14435 --html /pfad/quest.html
+npm run fetch -- --quest 14435 --html /path/to/quest.html
 ```
 
-Die kanonische URL muss zur angeforderten Retail-Quest gehören. HTTP-Fehler, Sperrseiten oder unbekannte Datenformate führen zum Abbruch; es gibt keine automatischen Wiederholungsversuche. Cache-Dateien und `node_modules/` sind von Git ausgeschlossen.
+The canonical URL must match the requested Retail quest. HTTP errors, block pages, and unknown data formats are reported per quest; requests are not retried automatically within the same run. Cache files and `node_modules/` are excluded from Git.
 
-## Auswahl und Textformat
+## Selection and text formatting
 
-Die Auswahl richtet sich ausschließlich nach Bewertung (bei Gleichstand nach Kommentar-ID). Eine hohe Bewertung garantiert keine Aktualität oder Nützlichkeit. Texte bleiben vollständig; Absätze, Koordinaten und beschriftete Links bleiben erhalten. Häufige Wowhead-Formatierungen werden in einfachen Text umgewandelt. Nicht unterstützte spezielle Tags können sichtbar bleiben.
+Comments are selected by rating, with comment ID as the tie-breaker. A high rating does not guarantee that a comment is current or useful. Full text, paragraphs, coordinates, and labeled links are preserved. Common Wowhead formatting is converted to plain text; unsupported special tags may remain visible.
 
-Autor, Kommentar-ID, Datum und direkter Quellenlink werden mit ausgegeben. Numerische Autorennamen werden so übernommen, wie Wowhead sie liefert. Es wird keine Spielversion aus dem Datum abgeleitet. Die Quelle ist eine HTML-Seite, keine dokumentierte öffentliche Kommentar-API; Änderungen am Seitenformat können Anpassungen erfordern.
+The output includes the author, comment ID, date, and direct source link. Numeric author names are preserved as provided by Wowhead. No game version is inferred from the date. Comments come from HTML pages rather than a documented public comment API, so changes to the page format may require code updates.
 
-## Prüfung
+## Checks
 
 ```bash
 npm run check
 npm test
 ```
 
-Die Tests prüfen die Extraktion ohne Ausführen fremden JavaScripts, Quest-Zuordnung, Textformatierung, Auswahl/Deduplizierung und Lua-/WoW-Escaping. Die Darstellung wird im Spiel geprüft.
+The tests cover extraction without executing remote JavaScript, quest matching, text formatting, selection, deduplication, and Lua/WoW escaping.
+
+With Lua 5.1 installed, run:
+
+```bash
+npm run test:addon
+```
+
+This loads the actual files listed in the TOC and checks comment text and authors for all generated quests, preview, explicit IDs, minimap clicks, numeric/text keys, and diagnostics. WoW widgets are stubbed; visual layout and actual WoW API behavior still require an in-game check.

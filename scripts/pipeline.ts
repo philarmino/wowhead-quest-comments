@@ -1,4 +1,5 @@
 import { decodeHTML } from 'entities';
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,17 +20,25 @@ export interface ProcessedData extends Omit<RawData, 'comments'> { comments: Com
 
 export function options() {
   const { values } = parseArgs({ options: {
-    quest: { type: 'string', default: '14435' },
+    quest: { type: 'string' },
     limit: { type: 'string', default: '5' },
     refresh: { type: 'boolean', default: false },
     html: { type: 'string' },
   }});
-  const questId = Number(values.quest), limit = Number(values.limit);
-  if (!Number.isSafeInteger(questId) || questId <= 0 || !Number.isSafeInteger(limit) || limit <= 0)
-    throw new Error('--quest und --limit müssen positive ganze Zahlen sein.');
+  const questId = values.quest === undefined ? undefined : Number(values.quest), limit = Number(values.limit);
+  if ((questId !== undefined && (!Number.isSafeInteger(questId) || questId <= 0)) || !Number.isSafeInteger(limit) || limit <= 0)
+    throw new Error('--quest and --limit must be positive integers.');
   return { questId, limit, refresh: values.refresh, html: values.html };
 }
 export const dataPath = (kind: 'raw' | 'processed', id: number) => resolve(root, 'data', kind, `${id}.json`);
+export async function questIds(): Promise<number[]> {
+  const source = await readJson(resolve(root, 'scripts/quests-eschental.json'));
+  if (!isObject(source) || !Array.isArray(source.quests)) throw new Error('Invalid Ashenvale quest list.');
+  const ids = source.quests.map((quest: unknown) => isObject(quest) ? quest.id : undefined);
+  if (!ids.every(id => Number.isSafeInteger(id) && (id as number) > 0) || new Set(ids).size !== ids.length)
+    throw new Error('Invalid or duplicate quest ID in the Ashenvale quest list.');
+  return [...new Set([14435, ...ids as number[]])].sort((a, b) => a - b);
+}
 export async function atomicWrite(path: string, content: string) {
   await mkdir(dirname(path), { recursive: true });
   const temporary = `${path}.${process.pid}.tmp`;
@@ -40,10 +49,10 @@ export async function readJson(path: string): Promise<unknown> { return JSON.par
 export function verifyQuestPage(html: string, questId: number) {
   const canonical = html.match(/<link\b[^>]*>/gi)?.find(tag => /rel=["']canonical["']/i.test(tag));
   const href = canonical?.match(/href=["']([^"']+)["']/i)?.[1];
-  if (!href) throw new Error('Die Seite enthält keine kanonische Quest-URL.');
+  if (!href) throw new Error('The page does not contain a canonical quest URL.');
   const url = new URL(decodeHTML(href));
   if (url.hostname !== 'www.wowhead.com' || !new RegExp(`^/quest=${questId}(?:/|$)`).test(url.pathname))
-    throw new Error('Die HTML-Seite gehört nicht zur angeforderten Retail-Quest.');
+    throw new Error('The HTML page does not belong to the requested Retail quest.');
 }
 export function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -51,20 +60,20 @@ export function isObject(value: unknown): value is Record<string, unknown> {
 export function validateRaw(value: unknown, questId: number): asserts value is RawData {
   if (!isObject(value) || value.schemaVersion !== 1 || value.questId !== questId ||
       typeof value.sourceUrl !== 'string' || typeof value.fetchedAt !== 'string' || !Array.isArray(value.comments))
-    throw new Error('Ungültige Rohdaten oder falsche Quest-ID.');
+    throw new Error('Invalid raw data or incorrect quest ID.');
   for (const c of value.comments) {
     if (!isObject(c) || !Number.isSafeInteger(c.id) || typeof c.user !== 'string' ||
         typeof c.body !== 'string' || typeof c.rating !== 'number' || !Number.isFinite(c.rating) || typeof c.date !== 'string')
-      throw new Error('Unerwartetes Wowhead-Kommentarformat. Bestehende Daten werden nicht ersetzt.');
+      throw new Error('Unexpected Wowhead comment format. Existing data will not be replaced.');
   }
 }
 
 // Read JSON only: never execute JavaScript from a downloaded page.
 export function extractComments(html: string): RawComment[] {
   const marker = /\b(?:var|let|const)\s+lv_comments0\s*=\s*/g.exec(html);
-  if (!marker) throw new Error('Keine lv_comments0-Daten gefunden (möglicherweise Sperrseite oder geändertes Seitenformat).');
+  if (!marker) throw new Error('No lv_comments0 data found (possible block page or changed page format).');
   const start = marker.index + marker[0].length;
-  if (html[start] !== '[') throw new Error('Kommentar-Datensatz ist kein JSON-Array.');
+  if (html[start] !== '[') throw new Error('The comment dataset is not a JSON array.');
   let depth = 0, quoted = false, escaped = false;
   for (let i = start; i < html.length; i++) {
     const char = html[i];
@@ -81,7 +90,7 @@ export function extractComments(html: string): RawComment[] {
       return envelope.comments;
     }
   }
-  throw new Error('Unvollständiger Kommentar-Datensatz.');
+  throw new Error('Incomplete comment dataset.');
 }
 
 export function plainText(body: string): string {
@@ -118,20 +127,29 @@ export function luaString(value: string): string {
     .replace(/\n/g, '\\n').replace(/\r/g, '\\r')
     .replace(/[\x00-\x1f\x7f]/g, c => '\\' + c.charCodeAt(0).toString().padStart(3, '0')) + '"';
 }
-export function generateLua(data: ProcessedData): string {
-  if (!Number.isSafeInteger(data.questId) || data.questId <= 0 || !Array.isArray(data.comments))
-    throw new Error('Ungültige aufbereitete Daten.');
-  const lines = ['-- Generated by npm run generate; do not edit manually.', 'WowheadQuestCommentsDB = {', `    [${data.questId}] = {`];
-  for (const c of data.comments) {
-    if (!Number.isSafeInteger(c.id) || !Number.isFinite(c.score) ||
-        [c.author, c.text, c.date, c.sourceUrl].some(v => typeof v !== 'string'))
-      throw new Error('Ungültiger aufbereiteter Kommentar.');
-    // Escape WoW markup too: comments must not inject texture, link or color codes.
-    const display = (s: string) => luaString(s.replace(/\|/g, '||'));
-    lines.push('        {', `            id = ${c.id},`, `            score = ${c.score},`,
-      `            author = ${display(c.author)},`, `            text = ${display(c.text)},`,
-      `            date = ${luaString(c.date)},`, `            sourceUrl = ${luaString(c.sourceUrl)},`, '        },');
+export function generateLua(input: ProcessedData | ProcessedData[]): string {
+  const datasets = Array.isArray(input) ? input : [input];
+  const seen = new Set<number>();
+  const lines = ['-- Generated by npm run generate; do not edit manually.', 'local _, ns = ...', 'ns.db = {'];
+  for (const data of [...datasets].sort((a, b) => a.questId - b.questId)) {
+    if (!Number.isSafeInteger(data.questId) || data.questId <= 0 || !Array.isArray(data.comments) || seen.has(data.questId))
+      throw new Error('Invalid or duplicate quest data.');
+    seen.add(data.questId);
+    lines.push(`    [${data.questId}] = {`);
+    for (const c of data.comments) {
+      if (!Number.isSafeInteger(c.id) || !Number.isFinite(c.score) ||
+          [c.author, c.text, c.date, c.sourceUrl].some(v => typeof v !== 'string'))
+        throw new Error('Invalid processed comment.');
+      // Escape WoW markup too: comments must not inject texture, link or color codes.
+      const display = (s: string) => luaString(s.replace(/\|/g, '||'));
+      lines.push('        {', `            id = ${c.id},`, `            score = ${c.score},`,
+        `            author = ${display(c.author)},`, `            text = ${display(c.text)},`,
+        `            date = ${luaString(c.date)},`, `            sourceUrl = ${luaString(c.sourceUrl)},`, '        },');
+    }
+    lines.push('    },');
   }
-  lines.push('    },', '}', '');
+  lines.push('}', '');
+  const build = createHash('sha256').update(lines.join('\n')).digest('hex').slice(0, 12);
+  lines.splice(2, 0, `ns.dataBuild = ${luaString(build)}`);
   return lines.join('\n');
 }

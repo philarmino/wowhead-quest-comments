@@ -1,7 +1,9 @@
 # Design
 
-- Ein Kommentar-Button hängt am Rand der Minimap. Er lässt sich entlang des Randes verschieben; seine Position bleibt nach einem Neustart erhalten.
-- Ein Klick öffnet oder schließt das Kommentarfenster für die Quest mit dem aktiven Wegweiser (Supertracking).
-- Das Fenster lässt sich verschieben, unten rechts in der Größe ändern und mit dem X oben rechts schließen. Position und Größe bleiben beim erneuten Öffnen und nach einem Neustart erhalten.
-- Lange Kommentare und mehrere Kommentare werden im Fenster gescrollt.
-- Für den Oberflächentest zeigt `/wqc preview` die vorhandenen Beispieldaten.
+- A comment button sits on the edge of the minimap. It can be dragged around the edge, and its position is saved across sessions.
+- Clicking it toggles the comment window for the quest with the active waypoint (supertracking).
+- The window can be moved, resized from the bottom-right corner, and closed with the top-right X. Position and size persist across sessions.
+- Long comments and multiple comments can be scrolled within the window.
+- Comment text is the main focus. Author names use a smaller font and muted gray; ratings remain gold and use signed numbers instead of a Unicode icon.
+- All interface text, diagnostics, script messages, and code comments are in English.
+- `/wqc preview` opens a quest with available comments. A specific quest can be opened with `/wqc <QuestID>`.

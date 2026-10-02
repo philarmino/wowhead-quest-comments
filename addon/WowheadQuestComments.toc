@@ -2,7 +2,7 @@
 ## Title: Wowhead Quest Comments
 ## Notes: Shows useful Wowhead comments for quests
 ## Author: m4rv & philarmino
-## Version: 0.1.0
+## Version: 0.2.3
 ## SavedVariables: WowheadQuestCommentsSettings
 
 Data.lua
