@@ -7,12 +7,13 @@
     "node": ">=22"
   },
   "scripts": {
+    "fetch:quests": "tsx scripts/fetch-quest-ids.ts",
     "fetch": "tsx scripts/fetch-comments.ts",
     "process": "tsx scripts/process-comments.ts",
     "generate": "tsx scripts/generate-lua.ts",
     "build:data": "npm run fetch && npm run process && npm run generate",
     "check": "tsc --noEmit",
-    "test": "tsx --test scripts/pipeline.test.ts",
+    "test": "tsx --test scripts/*.test.ts",
     "test:addon": "lua5.1 scripts/addon.test.lua"
   },
   "dependencies": {

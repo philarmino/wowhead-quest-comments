@@ -1,9 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import luaparse from 'luaparse';
-import { extractComments, generateLua, plainText, processComments, verifyQuestPage, type RawComment, type RawData } from './pipeline.ts';
+import { extractComments, generateLua, plainText, processComments, questIds, verifyQuestPage, type RawComment, type RawData } from './pipeline.ts';
 const comment = (id: number, rating: number, body: string): RawComment => ({ id, rating, body, user: 'Tester', date: '2026-10-02' });
 const raw = (comments: RawComment[]): RawData => ({ schemaVersion: 1, questId: 14435, sourceUrl: 'https://www.wowhead.com/quest=14435', fetchedAt: '2026-10-02', comments });
+
+test('all-area quest source is complete, sorted, and includes Ashenvale IDs', async () => {
+  const all = await questIds(true);
+  const ashenvale = await questIds();
+  assert.equal(all.length, 22207);
+  assert.ok(ashenvale.every(id => all.includes(id)));
+  assert.ok(all.every((id, index) => index === 0 || id > all[index - 1]));
+});
 
 test('rejects another quest even if the target appears in a related link', () => {
   assert.doesNotThrow(() => verifyQuestPage('<link rel="canonical" href="https://www.wowhead.com/quest=14435/title">', 14435));

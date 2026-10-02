@@ -108,7 +108,8 @@ run('13943')
 assert(context():find('Comment database not loaded',1,true))
 ns.db = db
 run('26467')
-expectQuest(26467, {})
+assert(#db[26467] > 0, 'Missing newly fetched quest 26467 comments')
+expectQuest(26467, db[26467])
 run('999999999')
 expectQuest(999999999, {})
 active = 0

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Fetch all 440 EU Retail quest areas from Battle.net and store 22,207 unique quest IDs in `scripts/quest-ids.json`. Per-area responses remain in the ignored local cache.
+- Revisit the 24 Ashenvale quests that previously returned HTTP 403. Nineteen yielded 78 selected comments; five had no comments. Regenerate `addon/Data.lua` for the existing 166 quest entries.
+- Add opt-in all-area Wowhead fetching and processing. Valid raw caches are skipped unless `--full-refresh` is specified. Bounded batches, an optional worker pool, a shared two-second minimum request interval, and fail-fast handling for HTTP 403 support safe resumption. Retries for 429 and server errors also pass through the shared request gate.
+- Fetch and process 300 additional quests from other areas before CloudFront blocks further requests: 271 have 1,177 selected comments, while 29 have none. These caches are local and excluded from Git. The remaining 21,741 IDs are available for a later run.
+- Pass TypeScript checks and 13 TypeScript tests. Generated Lua passes syntax validation. Lua 5.1 runtime checks require `lua5.1`, which was unavailable in the current environment.
+
 ## 0.2.4 — 2026-10-02
 
 - Add a thin divider between the window header and the first comment.

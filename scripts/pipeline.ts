@@ -22,16 +22,40 @@ export function options() {
   const { values } = parseArgs({ options: {
     quest: { type: 'string' },
     limit: { type: 'string', default: '5' },
-    refresh: { type: 'boolean', default: false },
+    'all-areas': { type: 'boolean', default: false },
+    'full-refresh': { type: 'boolean', default: false },
+    'max-requests': { type: 'string' },
+    'delay-ms': { type: 'string', default: '2000' },
+    concurrency: { type: 'string', default: '1' },
     html: { type: 'string' },
   }});
   const questId = values.quest === undefined ? undefined : Number(values.quest), limit = Number(values.limit);
-  if ((questId !== undefined && (!Number.isSafeInteger(questId) || questId <= 0)) || !Number.isSafeInteger(limit) || limit <= 0)
-    throw new Error('--quest and --limit must be positive integers.');
-  return { questId, limit, refresh: values.refresh, html: values.html };
+  const maxRequests = values['max-requests'] === undefined ? undefined : Number(values['max-requests']);
+  const delayMs = Number(values['delay-ms']);
+  const concurrency = Number(values.concurrency);
+  if ((questId !== undefined && (!Number.isSafeInteger(questId) || questId <= 0)) ||
+      !Number.isSafeInteger(limit) || limit <= 0 ||
+      (maxRequests !== undefined && (!Number.isSafeInteger(maxRequests) || maxRequests <= 0)) ||
+      !Number.isSafeInteger(delayMs) || delayMs < 0 ||
+      !Number.isSafeInteger(concurrency) || concurrency < 1 || concurrency > 16)
+    throw new Error('--quest, --limit, --max-requests and --concurrency must be positive integers; --delay-ms must be a nonnegative integer.');
+  return { questId, limit, allAreas: values['all-areas'], fullRefresh: values['full-refresh'],
+    maxRequests, delayMs, concurrency, html: values.html };
 }
 export const dataPath = (kind: 'raw' | 'processed', id: number) => resolve(root, 'data', kind, `${id}.json`);
-export async function questIds(): Promise<number[]> {
+export async function questIds(allAreas = false): Promise<number[]> {
+  if (allAreas) {
+    const source = await readJson(resolve(root, 'scripts/quest-ids.json'));
+    if (!isObject(source) || source.schemaVersion !== 1 ||
+        !Array.isArray(source.failedAreaIds) || source.failedAreaIds.length ||
+        !Array.isArray(source.questIds) || source.questIds.length === 0)
+      throw new Error('Invalid or incomplete all-area quest ID list.');
+    const ids = source.questIds;
+    if (!ids.every(id => Number.isSafeInteger(id) && id > 0) ||
+        ids.some((id, index) => index > 0 && id <= ids[index - 1]))
+      throw new Error('Invalid or duplicate quest ID in all-area list.');
+    return ids;
+  }
   const source = await readJson(resolve(root, 'scripts/quests-eschental.json'));
   if (!isObject(source) || !Array.isArray(source.quests)) throw new Error('Invalid Ashenvale quest list.');
   const ids = source.quests.map((quest: unknown) => isObject(quest) ? quest.id : undefined);
