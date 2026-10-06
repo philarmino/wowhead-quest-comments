@@ -46,14 +46,15 @@ npm run fetch:quests
 
 The command uses client credentials to fetch a token, then reads the EU Retail quest area index and every listed area in German. Validated full responses are cached in `data/quest-areas/{AreaID}.json`. A deduplicated, sorted list of all quest IDs is written to `scripts/quest-ids.json` when every area succeeds. If any area fails, a partial list with the failed area IDs is saved under `data/quest-ids.partial.json` instead, leaving the last complete list intact. Rerunning the command reuses valid cached area responses and retries missing areas; add `--refresh` to fetch every area again. Use `npm run fetch:quests -- --area 1` for a single area or `npm run fetch:quests -- --list-areas` to print the area index. Credentials and tokens are never written to disk.
 
-This step only calls Battle.net. It does not fetch Wowhead comments or modify `addon/Data.lua`. The default fetch command uses the checked-in Ashenvale source `scripts/quests-eschental.json`; pass `--all-areas` to fetch IDs from the complete list.
+This step only calls Battle.net. It does not fetch Wowhead comments or modify `addon/Data.lua`. Comment fetching uses the complete ID list in `scripts/quest-ids.json` by default.
 
 ### Select areas and expansions when fetching comments
 
-`npm run fetch` can select one or more Blizzard area IDs from the cached area responses. Repeat `--area` or separate IDs with commas. The expansion filter uses a local mapping from [Wowhead's zone list](https://www.wowhead.com/zones), matched by area ID:
+By default, `npm run fetch` uses all IDs from `scripts/quest-ids.json`. Narrow the set with one or more Blizzard area IDs from the cached area responses, or with an expansion filter. Repeat `--area` or separate IDs with commas. The expansion filter uses a local mapping from [Wowhead's zone list](https://www.wowhead.com/zones), matched by area ID:
 
 ```bash
-npm run fetch -- --area 331
+npm run fetch -- --max-requests 99
+npm run fetch -- --area 331 --max-requests 99
 npm run fetch -- --area 331,14 --max-requests 100
 npm run fetch -- --expansion dragonflight --max-requests 100
 npm run fetch -- --area 13644 --expansion dragonflight
@@ -65,22 +66,24 @@ The checked-in mapping covers 395 of the 440 Blizzard areas in the current index
 
 ```bash
 npm ci
-npm run build:data
+npm run fetch -- --max-requests 99
+npm run process
+npm run generate
 ```
 
-The default fetch run requests **165 Ashenvale quest IDs from `scripts/quests-eschental.json`**, plus the previously included quest 14435. The list is the supplied Blizzard response for Ashenvale (`area/331`); its German area and quest names are preserved as source data.
+`npm run build:data` runs fetch, process, and generate. Prefer bounded fetch batches (`--max-requests`) so Wowhead access is less likely to be blocked.
 
 1. `npm run fetch`: load each English Retail page and extract the embedded `lv_comments0` JSON array. Store raw data with the source URL and fetch timestamp in `data/raw/{QuestID}.json`. Reuse valid cached data. New requests use one worker and a shared two-second minimum spacing by default. HTTP 403 stops the batch immediately; 429 and server errors get up to two retries.
 2. `npm run process`: process every locally cached raw quest, including quests fetched with `--quest`, `--area`, or `--expansion`. The same area and expansion selectors can limit processing. Exclude deleted, outdated, indented, and duplicate comments. Select up to five top-rated main comments, without replies. Store results in `data/processed/{QuestID}.json`.
-3. `npm run generate`: combine all locally processed quests with the original Ashenvale IDs, add empty entries for missing Ashenvale quests, validate Lua 5.1 syntax, and atomically replace `addon/Data.lua`. The generated data includes a deterministic build ID for diagnostics.
+3. `npm run generate`: bundle every locally processed quest, validate Lua 5.1 syntax, and atomically replace `addon/Data.lua`. The generated data includes a deterministic build ID for diagnostics.
 
-A failed fetch does not replace existing cache files. An HTTP 403 stops the current run; other failures are reported and the batch continues. IDs without processed data receive an empty comment list. The addon displays “No comments have been saved for this quest yet.” for these entries. Running the pipeline again retries quests without raw data.
+A failed fetch does not replace existing cache files. An HTTP 403 stops the current run; other failures are reported and the batch continues. Quests whose processed file has no selected comments appear in the addon as “No comments have been saved for this quest yet.” Running the pipeline again retries quests without raw data.
 
 The scripts run outside WoW. Copy the generated `Data.lua` into the installed addon folder and run `/reload`.
 
 ## Cache and options
 
-Valid raw cache files are reused without another network request. Process a single quest explicitly, or omit `--quest` to use the full list:
+Valid raw cache files are reused without another network request. Process a single quest explicitly, or omit `--quest` to process every local raw cache:
 
 ```bash
 npm run fetch -- --quest 14435 --full-refresh
@@ -88,7 +91,7 @@ npm run process -- --quest 14435 --limit 5
 npm run generate -- --quest 14435
 ```
 
-To fetch comments for the 22,207 IDs collected across all areas, run `npm run fetch -- --all-areas`. The command only requests IDs without a valid raw cache. It can be stopped and restarted; completed quests are skipped. Add `--max-requests 100` for a bounded batch. `--concurrency 8` permits eight simultaneous workers, but every worker shares the same request gate; `--delay-ms 5000` changes the default two-second minimum gap between new requests. Only `--full-refresh` requests already cached IDs again. A run report is written to `data/wowhead-fetch-report.json`. `npm run process -- --all-areas` limits processing to the available all-area raw caches. Generation bundles every locally processed quest, so a larger cache makes `addon/Data.lua` larger.
+The full ID list has 22,207 quests. `npm run fetch` only requests IDs without a valid raw cache. It can be stopped and restarted; completed quests are skipped. Add `--max-requests 99` for a bounded batch. `--concurrency 8` permits eight simultaneous workers, but every worker shares the same request gate; `--delay-ms 5000` changes the default two-second minimum gap between new requests. Only `--full-refresh` requests already cached IDs again. A run report is written to `data/wowhead-fetch-report.json`. `--all-areas` is accepted as an explicit full-list selector and is equivalent to the default when no `--quest`, `--area`, or `--expansion` is set. Generation bundles every locally processed quest, so a larger cache makes `addon/Data.lua` larger.
 
 `generate --quest <ID>` writes only that quest to `Data.lua`. Use `npm run generate` without `--quest` for the full locally processed database.
 

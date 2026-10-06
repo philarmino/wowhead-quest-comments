@@ -57,25 +57,17 @@ export async function cachedQuestIds(kind: 'raw' | 'processed'): Promise<number[
     .map(name => Number(name.slice(0, -5)))
     .filter(Number.isSafeInteger).sort((a, b) => a - b);
 }
-export async function questIds(allAreas = false): Promise<number[]> {
-  if (allAreas) {
-    const source = await readJson(resolve(root, 'scripts/quest-ids.json'));
-    if (!isObject(source) || source.schemaVersion !== 1 ||
-        !Array.isArray(source.failedAreaIds) || source.failedAreaIds.length ||
-        !Array.isArray(source.questIds) || source.questIds.length === 0)
-      throw new Error('Invalid or incomplete all-area quest ID list.');
-    const ids = source.questIds;
-    if (!ids.every(id => Number.isSafeInteger(id) && id > 0) ||
-        ids.some((id, index) => index > 0 && id <= ids[index - 1]))
-      throw new Error('Invalid or duplicate quest ID in all-area list.');
-    return ids;
-  }
-  const source = await readJson(resolve(root, 'scripts/quests-eschental.json'));
-  if (!isObject(source) || !Array.isArray(source.quests)) throw new Error('Invalid Ashenvale quest list.');
-  const ids = source.quests.map((quest: unknown) => isObject(quest) ? quest.id : undefined);
-  if (!ids.every(id => Number.isSafeInteger(id) && (id as number) > 0) || new Set(ids).size !== ids.length)
-    throw new Error('Invalid or duplicate quest ID in the Ashenvale quest list.');
-  return [...new Set([14435, ...ids as number[]])].sort((a, b) => a - b);
+export async function questIds(): Promise<number[]> {
+  const source = await readJson(resolve(root, 'scripts/quest-ids.json'));
+  if (!isObject(source) || source.schemaVersion !== 1 ||
+      !Array.isArray(source.failedAreaIds) || source.failedAreaIds.length ||
+      !Array.isArray(source.questIds) || source.questIds.length === 0)
+    throw new Error('Invalid or incomplete quest ID list in scripts/quest-ids.json.');
+  const ids = source.questIds;
+  if (!ids.every(id => Number.isSafeInteger(id) && id > 0) ||
+      ids.some((id, index) => index > 0 && id <= ids[index - 1]))
+    throw new Error('Invalid or duplicate quest ID in scripts/quest-ids.json.');
+  return ids;
 }
 export async function atomicWrite(path: string, content: string) {
   await mkdir(dirname(path), { recursive: true });

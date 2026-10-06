@@ -5,12 +5,12 @@ import { extractComments, generateLua, plainText, processComments, questIds, ver
 const comment = (id: number, rating: number, body: string): RawComment => ({ id, rating, body, user: 'Tester', date: '2026-10-02' });
 const raw = (comments: RawComment[]): RawData => ({ schemaVersion: 1, questId: 14435, sourceUrl: 'https://www.wowhead.com/quest=14435', fetchedAt: '2026-10-02', comments });
 
-test('all-area quest source is complete, sorted, and includes Ashenvale IDs', async () => {
-  const all = await questIds(true);
-  const ashenvale = await questIds();
-  assert.equal(all.length, 22207);
-  assert.ok(ashenvale.every(id => all.includes(id)));
-  assert.ok(all.every((id, index) => index === 0 || id > all[index - 1]));
+test('quest ID list is complete and strictly sorted', async () => {
+  const ids = await questIds();
+  assert.equal(ids.length, 22207);
+  assert.ok(ids.includes(2));
+  assert.ok(ids.includes(14435));
+  assert.ok(ids.every((id, index) => index === 0 || id > ids[index - 1]));
 });
 
 test('rejects another quest even if the target appears in a related link', () => {
