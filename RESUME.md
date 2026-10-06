@@ -18,17 +18,20 @@ See [CHANGELOG.md](CHANGELOG.md) for the complete release history and validation
 ## Quest data
 
 - `scripts/quest-ids.json` contains 22,207 unique quest IDs from all 440 Battle.net quest areas. This is the default fetch source.
-- Fetch, process, and generate no longer use a separate Ashenvale-only list. Area 331 can still be selected with `--area 331` like any other zone.
-- Fetch skips every valid raw cache unless `--full-refresh` is specified. Prefer `--max-requests 99` (or similar) for bounded batches; HTTP 403 stops the run.
-- Process defaults to every local raw cache. Generate bundles every local processed cache into `addon/Data.lua` (no empty placeholders for unfetched IDs).
-- Raw and processed JSON files are cached under `data/`, which is excluded from Git. The generated `addon/Data.lua` is included in Git.
+- Narrow fetches with `--area`, `--expansion`, or `--quest`. Short expansion names such as `tbc` and `tww` work.
+- Fetch skips every valid raw cache unless `--full-refresh` is specified. Prefer `--max-requests 99` for bounded batches; HTTP 403 stops the run.
+- `scripts/fetch-loop.sh <expansion>` repeats bounded expansion fetches and waits 5 minutes after each run (including 403 stops) until `remaining` is 0.
+- Process defaults to every local raw cache. Generate bundles every local processed cache into `addon/Data.lua` (unfetched IDs are omitted).
+- Raw/processed JSON and loop logs live under `data/` (gitignored). The generated `addon/Data.lua` is included in Git.
 - The data is passed from `Data.lua` to `Core.lua` through the shared addon namespace (`ns.db`).
 
 ## Commands
 
 ```bash
 npm ci
-npm run fetch -- --max-requests 99
+npm run fetch -- --expansion tbc --max-requests 99
+# or unattended:
+# nohup scripts/fetch-loop.sh tbc >/dev/null 2>&1 &
 npm run process
 npm run generate
 npm run check
@@ -36,7 +39,7 @@ npm test
 npm run test:addon
 ```
 
-The last command requires Lua 5.1. It executes the actual TOC files with WoW widget stubs and checks all generated quests, numeric and textual keys, commands, minimap clicks, and diagnostics. See `README.md` for single-quest operations, area/expansion filters, cache refreshes, and HTML imports.
+The last command requires Lua 5.1. It executes the actual TOC files with WoW widget stubs and checks all generated quests, numeric and textual keys, commands, minimap clicks, and diagnostics. See `README.md` for single-quest operations, area/expansion filters, cache refreshes, HTML imports, and the fetch loop.
 
 Copy the contents of `addon/` into `_retail_/Interface/AddOns/WowheadQuestComments/` and run `/reload`. Keep `Data.lua` and `Core.lua` from the same release together.
 
@@ -46,7 +49,8 @@ Copy the contents of `addon/` into `_retail_/Interface/AddOns/WowheadQuestCommen
 - `generate --quest <ID>` replaces the output with only that quest. Use the default generator for the full local processed set.
 - The window updates when opened; changing the tracked quest while it is already open does not refresh the displayed comments automatically.
 - Runtime checks do not replace an in-game layout check.
-- Wowhead may still return HTTP 403 under higher request pressure; resume from cache when access returns.
+- Wowhead may still return HTTP 403 under higher request pressure; the fetch loop pauses and retries. Resume is always safe from cache.
+- Growing `Data.lua` size remains a future scaling concern as more expansions are filled.
 
 ## Debugging evidence
 

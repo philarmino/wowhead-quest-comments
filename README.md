@@ -71,11 +71,11 @@ npm run process
 npm run generate
 ```
 
-`npm run build:data` runs fetch, process, and generate. Prefer bounded fetch batches (`--max-requests`) so Wowhead access is less likely to be blocked.
+`npm run build:data` runs fetch, process, and generate in one go. Without `--max-requests` the fetch step will attempt every missing ID in the selected set, so prefer bounded batches or `scripts/fetch-loop.sh` for large expansions.
 
 1. `npm run fetch`: load each English Retail page and extract the embedded `lv_comments0` JSON array. Store raw data with the source URL and fetch timestamp in `data/raw/{QuestID}.json`. Reuse valid cached data. New requests use one worker and a shared two-second minimum spacing by default. HTTP 403 stops the batch immediately; 429 and server errors get up to two retries.
 2. `npm run process`: process every locally cached raw quest, including quests fetched with `--quest`, `--area`, or `--expansion`. The same area and expansion selectors can limit processing. Exclude deleted, outdated, indented, and duplicate comments. Select up to five top-rated main comments, without replies. Store results in `data/processed/{QuestID}.json`.
-3. `npm run generate`: bundle every locally processed quest, validate Lua 5.1 syntax, and atomically replace `addon/Data.lua`. The generated data includes a deterministic build ID for diagnostics.
+3. `npm run generate`: bundle every locally processed quest, validate Lua 5.1 syntax, and atomically replace `addon/Data.lua`. The generated data includes a deterministic build ID for diagnostics. Unfetched quests are omitted; empty comment lists only appear when a processed file exists with no selected comments.
 
 A failed fetch does not replace existing cache files. An HTTP 403 stops the current run; other failures are reported and the batch continues. Quests whose processed file has no selected comments appear in the addon as “No comments have been saved for this quest yet.” Running the pipeline again retries quests without raw data.
 
@@ -91,9 +91,22 @@ npm run process -- --quest 14435 --limit 5
 npm run generate -- --quest 14435
 ```
 
-The full ID list has 22,207 quests. `npm run fetch` only requests IDs without a valid raw cache. It can be stopped and restarted; completed quests are skipped. Add `--max-requests 99` for a bounded batch. `--concurrency 8` permits eight simultaneous workers, but every worker shares the same request gate; `--delay-ms 5000` changes the default two-second minimum gap between new requests. Only `--full-refresh` requests already cached IDs again. A run report is written to `data/wowhead-fetch-report.json`. `--all-areas` is accepted as an explicit full-list selector and is equivalent to the default when no `--quest`, `--area`, or `--expansion` is set. Generation bundles every locally processed quest, so a larger cache makes `addon/Data.lua` larger.
+The full ID list has 22,207 quests. `npm run fetch` only requests IDs without a valid raw cache. It can be stopped and restarted; completed quests are skipped. Add `--max-requests 99` for a bounded batch. `--concurrency 8` permits eight simultaneous workers, but every worker shares the same request gate; `--delay-ms 5000` changes the default two-second minimum gap between new requests. Only `--full-refresh` requests already cached IDs again. `--all-areas` is accepted as an explicit full-list selector and is equivalent to the default when no `--quest`, `--area`, or `--expansion` is set. A run report is written to `data/wowhead-fetch-report.json`. Generation bundles every locally processed quest, so a larger cache makes `addon/Data.lua` larger.
 
 `generate --quest <ID>` writes only that quest to `Data.lua`. Use `npm run generate` without `--quest` for the full locally processed database.
+
+### Unattended expansion fetch loop
+
+`scripts/fetch-loop.sh` fetches one expansion in bounded batches, waits after each run (default 5 minutes), and repeats until that expansion’s `remaining` count is 0. Lock, PID, and log files are per expansion under `data/` and `data/logs/`.
+
+```bash
+nohup scripts/fetch-loop.sh tbc >/dev/null 2>&1 &
+nohup scripts/fetch-loop.sh dragonflight --max-requests 99 --pause-seconds 300 >/dev/null 2>&1 &
+kill "$(cat data/fetch-tbc.pid)"
+tail -f data/logs/fetch-tbc.log
+```
+
+Run one expansion loop at a time so Wowhead request spacing stays predictable. After the raw cache is filled, run `npm run process` and `npm run generate` once to refresh the addon database.
 
 You can import a previously saved complete Wowhead HTML page:
 
@@ -101,7 +114,7 @@ You can import a previously saved complete Wowhead HTML page:
 npm run fetch -- --quest 14435 --html /path/to/quest.html
 ```
 
-The canonical URL must match the requested Retail quest. HTTP errors, block pages, and unknown data formats are reported per quest. HTTP 403 stops the run so a denied batch does not keep requesting more pages. A slower request rate may reduce rate-triggered blocks, but it cannot resolve other access restrictions. Cache files and `node_modules/` are excluded from Git.
+The canonical URL must match the requested Retail quest. HTTP errors, block pages, and unknown data formats are reported per quest. HTTP 403 stops the run so a denied batch does not keep requesting more pages. The fetch loop then waits its configured pause before retrying. A slower request rate may reduce rate-triggered blocks, but it cannot resolve other access restrictions. Cache files and `node_modules/` are excluded from Git.
 
 ## Selection and text formatting
 
