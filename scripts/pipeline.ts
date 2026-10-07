@@ -19,7 +19,7 @@ export interface Comment { id: number; author: string; score: number; text: stri
 export interface ProcessedData extends Omit<RawData, 'comments'> { comments: Comment[] }
 
 export function options() {
-  const { values } = parseArgs({ options: {
+  const { values, positionals } = parseArgs({ allowPositionals: true, options: {
     quest: { type: 'string' },
     limit: { type: 'string', default: '5' },
     'all-areas': { type: 'boolean', default: false },
@@ -31,6 +31,11 @@ export function options() {
     concurrency: { type: 'string', default: '1' },
     html: { type: 'string' },
   }});
+  if (positionals.length)
+    throw new Error(
+      `Unexpected argument '${positionals[0]}'. Pass options after "--" so npm forwards them, ` +
+      'for example: npm run fetch -- --expansion dragonflight --max-requests 99',
+    );
   const questId = values.quest === undefined ? undefined : Number(values.quest), limit = Number(values.limit);
   const maxRequests = values['max-requests'] === undefined ? undefined : Number(values['max-requests']);
   const delayMs = Number(values['delay-ms']);

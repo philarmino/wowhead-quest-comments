@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Accept `all` as the `scripts/fetch-loop.sh` target to loop over the full quest list, with its own lock, PID, and log file (`data/logs/fetch-all.log`).
+- Explain the missing `--` when npm forwards a bare value such as `npm run fetch --max-requests 99`.
+
 - Refresh the open comment window when a different quest becomes active (`SUPER_TRACKING_CHANGED`), so clicking a new quest loads its comments without reopening the window. A closed window stays closed.
 
 - Make `scripts/quest-ids.json` (22,207 IDs across all Battle.net quest areas) the default fetch source. Remove the Ashenvale-only `scripts/quests-eschental.json` list and stop generating empty placeholder entries for unfetched IDs.

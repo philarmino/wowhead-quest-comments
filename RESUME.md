@@ -20,7 +20,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the complete release history and validation
 - `scripts/quest-ids.json` contains 22,207 unique quest IDs from all 440 Battle.net quest areas. This is the default fetch source.
 - Narrow fetches with `--area`, `--expansion`, or `--quest`. Short expansion names such as `tbc` and `tww` work.
 - Fetch skips every valid raw cache unless `--full-refresh` is specified. Prefer `--max-requests 99` for bounded batches; HTTP 403 stops the run.
-- `scripts/fetch-loop.sh <expansion>` repeats bounded expansion fetches and waits 5 minutes after each run (including 403 stops) until `remaining` is 0, or until a run saves nothing and no quests are left unattempted.
+- `scripts/fetch-loop.sh <expansion|all>` repeats bounded fetches for one expansion or the full quest list and waits 5 minutes after each run (including 403 stops) until `remaining` is 0, or until a run saves nothing and no quests are left unattempted.
 - Process defaults to every local raw cache. Generate bundles every local processed cache into `addon/Data.lua` (unfetched IDs are omitted).
 - Raw/processed JSON and loop logs live under `data/` (gitignored). The generated `addon/Data.lua` is included in Git.
 - The data is passed from `Data.lua` to `Core.lua` through the shared addon namespace (`ns.db`).

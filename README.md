@@ -97,10 +97,11 @@ The full ID list has 22,207 quests. `npm run fetch` only requests IDs without a 
 
 ### Unattended expansion fetch loop
 
-`scripts/fetch-loop.sh` fetches one expansion in bounded batches, waits after each run (default 5 minutes), and repeats until that expansion’s `remaining` count is 0. It also stops when a run saves nothing and every missing quest was already attempted, so permanent failures such as HTTP 404 are not retried forever. An HTTP 403 still waits and retries. Lock, PID, and log files are per expansion under `data/` and `data/logs/`.
+`scripts/fetch-loop.sh` fetches one expansion, or the full quest list with the target `all`, in bounded batches, waits after each run (default 5 minutes), and repeats until that expansion’s `remaining` count is 0. It also stops when a run saves nothing and every missing quest was already attempted, so permanent failures such as HTTP 404 are not retried forever. An HTTP 403 still waits and retries. Lock, PID, and log files are per expansion under `data/` and `data/logs/`.
 
 ```bash
 nohup scripts/fetch-loop.sh tbc >/dev/null 2>&1 &
+nohup scripts/fetch-loop.sh all >/dev/null 2>&1 &
 nohup scripts/fetch-loop.sh dragonflight --max-requests 99 --pause-seconds 300 >/dev/null 2>&1 &
 kill "$(cat data/fetch-tbc.pid)"
 tail -f data/logs/fetch-tbc.log

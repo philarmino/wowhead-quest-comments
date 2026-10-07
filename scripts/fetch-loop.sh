@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Fetch Wowhead comments in batches for one expansion.
+# Fetch Wowhead comments in batches for one expansion, or for the full quest
+# list with the target "all".
 # After each run, wait (default 5 minutes), then repeat until remaining is 0,
 # or until a run saves nothing and no quests are left unattempted (the same
 # failures would be retried forever). A 403 stop still waits and retries.
 #
 # Usage:
-#   scripts/fetch-loop.sh <expansion> [--max-requests N] [--pause-seconds N]
+#   scripts/fetch-loop.sh <expansion|all> [--max-requests N] [--pause-seconds N]
 # Examples:
 #   nohup scripts/fetch-loop.sh tbc >/dev/null 2>&1 &
+#   nohup scripts/fetch-loop.sh all >/dev/null 2>&1 &
 #   nohup scripts/fetch-loop.sh dragonflight --max-requests 99 --pause-seconds 300 >/dev/null 2>&1 &
 set -euo pipefail
 
@@ -18,12 +20,13 @@ PAUSE_SECONDS=300
 
 usage() {
   cat <<'USAGE' >&2
-Usage: scripts/fetch-loop.sh <expansion> [--max-requests N] [--pause-seconds N]
+Usage: scripts/fetch-loop.sh <expansion|all> [--max-requests N] [--pause-seconds N]
 
 Expansions: classic, tbc, wrath, cata, mop, wod, legion, bfa, shadowlands,
             dragonflight, tww, midnight (and full names)
+all:        the full quest list from scripts/quest-ids.json
 
-Stop a running loop with: kill "$(cat data/fetch-<expansion>.pid)"
+Stop a running loop with: kill "$(cat data/fetch-<expansion|all>.pid)"
 USAGE
   exit 2
 }
@@ -66,9 +69,15 @@ if ! [[ "$PAUSE_SECONDS" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
-# Validate expansion early via the same alias table the fetch script uses.
 cd "$ROOT"
-node --import tsx -e 'import { expansionId } from "./scripts/area-selection.ts"; expansionId(process.argv[1]); console.log("ok")' "$EXPANSION" >/dev/null
+if [[ "${EXPANSION,,}" == "all" ]]; then
+  EXPANSION="all"
+  FETCH_SELECTOR=()
+else
+  # Validate expansion early via the same alias table the fetch script uses.
+  node --import tsx -e 'import { expansionId } from "./scripts/area-selection.ts"; expansionId(process.argv[1]); console.log("ok")' "$EXPANSION" >/dev/null
+  FETCH_SELECTOR=(--expansion "$EXPANSION")
+fi
 
 SLUG="$(printf '%s' "$EXPANSION" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
 LOG_DIR="$ROOT/data/logs"
@@ -100,8 +109,10 @@ run_stats() {
   node -e '
     const r = require(process.argv[1]);
     const wanted = String(process.argv[2] || "").toLowerCase();
-    const got = String(r.expansion || "").toLowerCase();
-    if (!wanted || got !== wanted) {
+    const matches = wanted === "all"
+      ? r.allAreas === true && r.expansion == null
+      : wanted !== "" && String(r.expansion || "").toLowerCase() === wanted;
+    if (!matches) {
       process.stdout.write("-1 0 0 0 0 0");
       process.exit(0);
     }
@@ -148,7 +159,7 @@ log "loop start expansion=${EXPANSION} max-requests=${MAX_REQUESTS} pause=${PAUS
 while true; do
   log "==== fetch start ===="
   set +e
-  "$NPM" run fetch -- --expansion "$EXPANSION" --max-requests "$MAX_REQUESTS" >>"$LOG" 2>&1
+  "$NPM" run fetch -- "${FETCH_SELECTOR[@]}" --max-requests "$MAX_REQUESTS" >>"$LOG" 2>&1
   status=$?
   set -e
   read -r remaining saved deferred stopped403 total done <<<"$(run_stats)"
