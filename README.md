@@ -1,6 +1,6 @@
 # Wowhead Quest Comments
 
-A Retail addon with locally bundled quest comments. Click the minimap comment icon to open comments for the quest with the active waypoint (supertracking). The window can be moved and resized from its bottom-right corner. Window size, position, and minimap button position are saved.
+A Retail addon with locally bundled quest comments. Click the minimap comment icon to open comments for the quest with the active waypoint (supertracking). While the window is open, it switches to the comments of whichever quest you make active next. The window can be moved and resized from its bottom-right corner. Window size, position, and minimap button position are saved.
 
 Author names use smaller, muted text so the comment body remains the focus. The original posting date appears beside the author in yellow, one font size smaller, using `YYYY-MM-DD`. A thin line separates the window header from the comments. Ratings are shown as signed numbers, such as `+84` or `-2`.
 
@@ -97,7 +97,7 @@ The full ID list has 22,207 quests. `npm run fetch` only requests IDs without a 
 
 ### Unattended expansion fetch loop
 
-`scripts/fetch-loop.sh` fetches one expansion in bounded batches, waits after each run (default 5 minutes), and repeats until that expansion’s `remaining` count is 0. Lock, PID, and log files are per expansion under `data/` and `data/logs/`.
+`scripts/fetch-loop.sh` fetches one expansion in bounded batches, waits after each run (default 5 minutes), and repeats until that expansion’s `remaining` count is 0. It also stops when a run saves nothing and every missing quest was already attempted, so permanent failures such as HTTP 404 are not retried forever. An HTTP 403 still waits and retries. Lock, PID, and log files are per expansion under `data/` and `data/logs/`.
 
 ```bash
 nohup scripts/fetch-loop.sh tbc >/dev/null 2>&1 &

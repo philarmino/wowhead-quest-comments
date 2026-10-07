@@ -96,6 +96,7 @@ emptyText:SetWidth(335)
 emptyText:SetJustifyH("CENTER")
 
 local rows = {}
+local shownQuestID
 
 local function GetRow(index)
     if rows[index] then
@@ -191,6 +192,7 @@ local function ShowComments(questID)
     end
 
     scrollFrame:SetVerticalScroll(0)
+    shownQuestID = questID
 
     if type(ns.db) ~= "table" then
         context:SetText(MUTED .. "Comment database not loaded|r")
@@ -199,7 +201,7 @@ local function ShowComments(questID)
         scrollFrame:Hide()
     elseif not questID or questID == 0 then
         context:SetText(MUTED .. "No active quest|r")
-        emptyText:SetText("Set a quest as active and reopen this window.")
+        emptyText:SetText("Set a quest as active to see its comments.")
         emptyText:Show()
         scrollFrame:Hide()
     else
@@ -247,6 +249,18 @@ local function ToggleComments()
         ShowComments(GetActiveQuestID())
     end
 end
+
+local tracker = CreateFrame("Frame")
+tracker:RegisterEvent("SUPER_TRACKING_CHANGED")
+tracker:SetScript("OnEvent", function(_, event)
+    if event ~= "SUPER_TRACKING_CHANGED" or not commentFrame:IsShown() then
+        return
+    end
+    local questID = GetActiveQuestID()
+    if questID ~= shownQuestID then
+        ShowComments(questID)
+    end
+end)
 
 local minimapButton = CreateFrame("Button", "WowheadQuestCommentsMinimapButton", Minimap)
 minimapButton:SetSize(32, 32)

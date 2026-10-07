@@ -17,6 +17,40 @@ function progressInterval(total: number): number {
   return 25;
 }
 
+const BAR_WIDTH = 32;
+const BAR_PARTIAL = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉'];
+
+function progressBar(ratio: number, width = BAR_WIDTH): string {
+  const clamped = Math.min(1, Math.max(0, ratio));
+  const scaled = clamped * width;
+  let full = Math.floor(scaled);
+  let partialIndex = Math.round((scaled - full) * 8);
+  if (partialIndex >= 8) {
+    full += 1;
+    partialIndex = 0;
+  }
+  full = Math.min(width, full);
+  const partial = full === width ? '' : BAR_PARTIAL[partialIndex] ?? '';
+  const empty = width - full - (partial ? 1 : 0);
+  return '█'.repeat(full) + partial + '░'.repeat(Math.max(0, empty));
+}
+
+function formatPercent(ratio: number): string {
+  return `${(Math.min(1, Math.max(0, ratio)) * 100).toFixed(1).padStart(5)}%`;
+}
+
+function statusLine(done: number, total: number, runCompleted: number, runTotal: number): string {
+  const safeTotal = Math.max(0, total);
+  const safeDone = Math.min(Math.max(0, done), safeTotal);
+  const remaining = safeTotal - safeDone;
+  const overall = safeTotal === 0 ? 1 : safeDone / safeTotal;
+  const runRatio = runTotal > 0 ? Math.min(1, Math.max(0, runCompleted / runTotal)) : overall;
+  const runPart = runTotal > 0
+    ? `${formatPercent(runRatio)}  ${runCompleted}/${runTotal} this run`
+    : formatPercent(overall);
+  return `remaining ${String(remaining).padStart(5)}  [${progressBar(runRatio)}] ${runPart}  ·  overall ${formatPercent(overall)}  ${safeDone}/${safeTotal}`;
+}
+
 async function main() {
   const { questId, allAreas, areas, expansion, fullRefresh, maxRequests, delayMs, concurrency, html: htmlPath } = options();
   if (htmlPath && questId === undefined) throw new Error('--html also requires --quest.');
@@ -72,6 +106,7 @@ async function main() {
   } else {
     console.log('Nothing to fetch; all selected quests are already cached.');
   }
+  console.log(statusLine(cachedCount, ids.length, 0, selected.length));
 
   let next = 0, completed = 0, saved = 0, stop = false;
   const startedAt = Date.now();
@@ -88,9 +123,8 @@ async function main() {
     const remainingWork = selected.length - completed;
     const eta = rate > 0 && remainingWork > 0 ? `, ETA ${formatDuration(rate * remainingWork)}` : '';
     console.log(
-      `Progress: ${completed}/${selected.length} this run` +
-      ` (${saved} saved, ${errors.length} failed, ${cachedCount} already cached)` +
-      `; elapsed ${formatDuration(elapsed)}${eta}.`,
+      `${statusLine(cachedCount + saved, ids.length, completed, selected.length)}` +
+      `  ·  ${saved} saved, ${errors.length} failed, elapsed ${formatDuration(elapsed)}${eta}`,
     );
   }
 
@@ -124,7 +158,7 @@ async function main() {
     }
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, selected.length) }, () => worker()));
-  if (selected.length && completed > 0 && completed % interval !== 0) logProgress(true);
+  if (selected.length && completed > 0 && completed !== selected.length && completed % interval !== 0) logProgress(true);
 
   const remaining = ids.length - cachedCount - saved;
   const report = {
@@ -149,7 +183,7 @@ async function main() {
   };
   await atomicWrite(resolve(root, 'data', 'wowhead-fetch-report.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(
-    `Fetch complete in ${formatDuration(report.elapsedMs)}: ` +
+    `remaining ${String(remaining).padStart(5)}  Fetch complete in ${formatDuration(report.elapsedMs)}: ` +
     `${saved} saved, ${cachedCount} were cached, ${errors.length} failed` +
     `${deferred > 0 ? `, ${deferred} deferred by --max-requests` : ''}` +
     `, ${remaining} still missing` +

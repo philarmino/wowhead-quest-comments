@@ -102,6 +102,31 @@ for _,database in ipairs({db, textKeys}) do
     expectQuest(13943, db[13943])
 end
 
+-- An open window follows the newly supertracked quest; a closed one stays closed.
+local function fireTrackingChanged()
+    for _,obj in ipairs(objects) do
+        if obj.scripts.OnEvent then obj.scripts.OnEvent(obj,'SUPER_TRACKING_CHANGED') end
+    end
+end
+ns.db = db
+active = 13943
+WowheadQuestCommentsFrame:Hide()
+WowheadQuestCommentsMinimapButton.scripts.OnClick(WowheadQuestCommentsMinimapButton)
+expectQuest(13943, db[13943])
+active = 26467
+fireTrackingChanged()
+expectQuest(26467, db[26467])
+active = 0
+fireTrackingChanged()
+assert(context():find('No active quest',1,true))
+active = 13943
+fireTrackingChanged()
+expectQuest(13943, db[13943])
+WowheadQuestCommentsFrame:Hide()
+active = 26467
+fireTrackingChanged()
+assert(not WowheadQuestCommentsFrame:IsShown(), 'Tracking change reopened a closed window')
+
 -- Missing database is a load error, not a quest with zero comments.
 ns.db = nil
 run('13943')
@@ -123,7 +148,9 @@ print = function(text) messages[#messages+1] = text end
 run('debug 13943')
 assert(messages[1]:find('Core 0.2.4',1,true))
 assert(messages[1]:find(ns.dataBuild,1,true))
-assert(messages[1]:find('Numeric/text IDs 166/0',1,true))
+local numericKeys = 0
+for _ in pairs(db) do numericKeys = numericKeys + 1 end
+assert(messages[1]:find('Numeric/text IDs '..numericKeys..'/0',1,true))
 assert(messages[2]:find('Quest 13943 | Entry present | Comments 2',1,true))
 local before = context()
 run('nonsense 13943')

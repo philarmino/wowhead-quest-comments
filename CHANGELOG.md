@@ -2,10 +2,12 @@
 
 ## Unreleased
 
+- Refresh the open comment window when a different quest becomes active (`SUPER_TRACKING_CHANGED`), so clicking a new quest loads its comments without reopening the window. A closed window stays closed.
+
 - Make `scripts/quest-ids.json` (22,207 IDs across all Battle.net quest areas) the default fetch source. Remove the Ashenvale-only `scripts/quests-eschental.json` list and stop generating empty placeholder entries for unfetched IDs.
 - Improve fetch/process/generate logging: start plan, bounded progress with ETA, and compact summaries instead of one line per quest on large runs.
 - Keep area/expansion filters and `--max-requests` for bounded Wowhead batches. Valid raw caches are skipped unless `--full-refresh` is specified. HTTP 403 stops the run so cached data stays intact.
-- Add `scripts/fetch-loop.sh <expansion>` for unattended bounded fetches: run a batch, wait 5 minutes (configurable), repeat until that expansion’s remaining count is 0.
+- Add `scripts/fetch-loop.sh <expansion>` for unattended bounded fetches: run a batch, wait 5 minutes (configurable), repeat until that expansion’s remaining count is 0. Stop early when a run saves nothing and every missing quest was already attempted, so permanent failures are not retried forever. HTTP 403 still waits and retries.
 
 ## 0.2.4 — 2026-10-02
 
