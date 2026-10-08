@@ -1,4 +1,4 @@
-# Wowhead Quest Comments
+# Community Quest Comments
 
 A Retail addon with locally bundled quest comments. Click the minimap comment icon to open comments for the quest with the active waypoint (supertracking). While the window is open, it switches to the comments of whichever quest you make active next. The window can be moved and resized from its bottom-right corner. Window size, position, and minimap button position are saved.
 
@@ -19,13 +19,13 @@ Diagnostics use the same database as the display. A missing database is shown as
 
 ## Releases
 
-Pushing a version tag such as `v0.2.5` starts the [addon release workflow](.github/workflows/release.yml). It checks that the tag matches the version in `addon/WowheadQuestComments.toc` and `addon/Core.lua`, packages the committed `addon/` files into `WowheadQuestComments-v0.2.5.zip`, and attaches that ZIP to a GitHub Release. The ZIP already contains the `WowheadQuestComments/` folder, so extract it directly into `_retail_/Interface/AddOns/`.
+Pushing a version tag such as `v0.2.6` starts the [addon release workflow](.github/workflows/release.yml). It checks that the tag matches the version in `addon/WowheadQuestComments.toc` and `addon/Core.lua`, packages the committed `addon/` files into `WowheadQuestComments-v0.2.6.zip`, and attaches that ZIP to a GitHub Release. The ZIP already contains the `WowheadQuestComments/` folder, so extract it directly into `_retail_/Interface/AddOns/`.
 
 Before tagging, update both addon version strings and commit the generated `addon/Data.lua`. Then create and push an annotated tag:
 
 ```bash
-git tag -a v0.2.5 -m "Wowhead Quest Comments 0.2.5"
-git push origin main v0.2.5
+git tag -a v0.2.6 -m "Community Quest Comments 0.2.6"
+git push origin main v0.2.6
 ```
 
 The workflow can also be rerun manually for an existing tag. GitHub adds its own source-code archives to every release; the addon ZIP is the only uploaded release asset.

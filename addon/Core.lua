@@ -1,9 +1,13 @@
 local addonName, ns = ...
-local CORE_BUILD = "0.2.5"
+local CORE_BUILD = "0.2.6"
 local settings
 
 local GOLD = "|cffffd27a"
 local MUTED = "|cff9ca3ad"
+local LINK = "|cff67b1e9"
+local ROW_TOP_PAD = 10
+local ROW_META = 25
+local ROW_BOTTOM_PAD = 14
 -- Field order of each comment in Data.lua, written by scripts/pipeline.ts generateLua.
 local AUTHOR, SCORE, DATE, TEXT = 1, 2, 3, 4
 
@@ -53,14 +57,64 @@ windowLogo:SetTexture("Interface\\AddOns\\WowheadQuestComments\\Media\\WindowLog
 windowLogo:SetSize(48, 48)
 windowLogo:SetPoint("TOPLEFT", 18, -18)
 
-local title = commentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+local title = commentFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 title:SetPoint("TOPLEFT", windowLogo, "TOPRIGHT", 12, -2)
-title:SetText("Wowhead Quest Comments")
+title:SetText("Community Quest Comments")
+local titleFont, titleSize, titleFlags = title:GetFont()
+title:SetFont(titleFont, math.max(15, titleSize + 2), titleFlags)
+title:SetTextColor(1, 1, 1)
 
-local context = commentFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-context:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-context:SetJustifyH("LEFT")
-context:SetWidth(340)
+local contextButton = CreateFrame("Button", nil, commentFrame)
+contextButton:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+contextButton:SetSize(340, 16)
+
+local contextLabel = contextButton:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+contextLabel:SetPoint("TOPLEFT", contextButton, "TOPLEFT", 0, 0)
+contextLabel:SetJustifyH("LEFT")
+contextLabel:SetWidth(340)
+
+StaticPopupDialogs["WQC_WOWHEAD_LINK"] = {
+    text = "Wowhead quest link (Ctrl+C to copy):",
+    button1 = CLOSE,
+    hasEditBox = 1,
+    editBoxWidth = 280,
+    OnShow = function(self, data)
+        self.editBox:SetText(data)
+        self.editBox:HighlightText()
+        self.editBox:SetFocus()
+    end,
+    timeout = 0,
+    whileDead = 1,
+    hideOnEscape = 1,
+}
+
+local function CopyWowheadLink(questID)
+    local url = "https://www.wowhead.com/quest=" .. tostring(questID)
+    if CopyToClipboard then
+        CopyToClipboard(url)
+        print("WQC: Copied Wowhead link to clipboard.")
+    else
+        StaticPopup_Show("WQC_WOWHEAD_LINK", nil, nil, url)
+    end
+end
+
+contextButton:SetScript("OnClick", function(self)
+    if self.questID then
+        CopyWowheadLink(self.questID)
+    end
+end)
+contextButton:SetScript("OnEnter", function(self)
+    if not self.questID then
+        return
+    end
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText("Copy Wowhead link")
+    GameTooltip:AddLine("Click to copy the quest URL to your clipboard.", 1, 1, 1)
+    GameTooltip:Show()
+end)
+contextButton:SetScript("OnLeave", function()
+    GameTooltip:Hide()
+end)
 
 local closeButton = CreateFrame("Button", nil, commentFrame, "UIPanelCloseButton")
 closeButton:SetPoint("TOPRIGHT", -8, -8)
@@ -83,14 +137,14 @@ resizeButton:SetScript("OnMouseUp", function()
 end)
 
 local scrollFrame = CreateFrame("ScrollFrame", nil, commentFrame, "UIPanelScrollFrameTemplate")
-scrollFrame:SetPoint("TOPLEFT", 25, -112)
+scrollFrame:SetPoint("TOPLEFT", 25, -120)
 scrollFrame:SetPoint("BOTTOMRIGHT", -43, 23)
 
 local headerDivider = commentFrame:CreateTexture(nil, "ARTWORK")
-headerDivider:SetColorTexture(0.78, 0.62, 0.32, 0.22)
-headerDivider:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, 8)
-headerDivider:SetPoint("TOPRIGHT", scrollFrame, "TOPRIGHT", -36, 8)
-headerDivider:SetHeight(1)
+headerDivider:SetColorTexture(0.78, 0.62, 0.32, 0.48)
+headerDivider:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, 10)
+headerDivider:SetPoint("TOPRIGHT", scrollFrame, "TOPRIGHT", -36, 10)
+headerDivider:SetHeight(2)
 
 local scrollChild = CreateFrame("Frame", nil, scrollFrame)
 scrollChild:SetWidth(365)
@@ -115,7 +169,7 @@ local function GetRow(index)
 
     row.author = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.author:SetTextColor(0.61, 0.64, 0.69)
-    row.author:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+    row.author:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -ROW_TOP_PAD)
     row.author:SetWidth(270)
     row.author:SetJustifyH("LEFT")
     row.author:SetWordWrap(false)
@@ -129,12 +183,12 @@ local function GetRow(index)
     row.date:SetWordWrap(false)
 
     row.score = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.score:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, 0)
+    row.score:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -ROW_TOP_PAD)
     row.score:SetWidth(70)
     row.score:SetJustifyH("RIGHT")
 
     row.body = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    row.body:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -25)
+    row.body:SetPoint("TOPLEFT", row, "TOPLEFT", 0, -(ROW_TOP_PAD + ROW_META))
     row.body:SetWidth(355)
     row.body:SetJustifyH("LEFT")
     row.body:SetJustifyV("TOP")
@@ -150,8 +204,22 @@ local function GetRow(index)
     return row
 end
 
+local function SetContextMessage(text)
+    contextLabel:SetText(text)
+    contextButton:Disable()
+    contextButton.questID = nil
+end
+
+local function SetContextQuest(questID)
+    contextLabel:SetText(LINK .. "QuestID " .. questID .. "|r")
+    contextButton:Enable()
+    contextButton.questID = questID
+end
+
 local function LayoutRows()
-    context:SetWidth(math.max(200, commentFrame:GetWidth() - 130))
+    local contextWidth = math.max(200, commentFrame:GetWidth() - 130)
+    contextButton:SetWidth(contextWidth)
+    contextLabel:SetWidth(contextWidth)
     emptyText:SetWidth(math.max(200, scrollFrame:GetWidth() - 30))
 
     local contentWidth = math.max(200, scrollFrame:GetWidth() - 36)
@@ -168,7 +236,7 @@ local function LayoutRows()
             row.body:SetWidth(contentWidth)
             row:ClearAllPoints()
             row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -y)
-            row:SetHeight(25 + math.max(1, row.body:GetStringHeight()) + 20)
+            row:SetHeight(ROW_TOP_PAD + ROW_META + math.max(1, row.body:GetStringHeight()) + ROW_BOTTOM_PAD)
             y = y + row:GetHeight()
         end
     end
@@ -202,19 +270,19 @@ local function ShowComments(questID)
     shownQuestID = questID
 
     if type(ns.db) ~= "table" then
-        context:SetText(MUTED .. "Comment database not loaded|r")
+        SetContextMessage(MUTED .. "Comment database not loaded|r")
         emptyText:SetText("The comment database could not be loaded. Run /wqc debug for details.")
         emptyText:Show()
         scrollFrame:Hide()
     elseif not questID or questID == 0 then
-        context:SetText(MUTED .. "No active quest|r")
+        SetContextMessage(MUTED .. "No active quest|r")
         emptyText:SetText("Set a quest as active to see its comments.")
         emptyText:Show()
         scrollFrame:Hide()
     else
         local comments = GetComments(questID)
         local count = comments and #comments or 0
-        context:SetText(MUTED .. "Quest " .. questID .. "  ·  " .. count .. " comments|r")
+        SetContextQuest(questID)
 
         if count == 0 then
             emptyText:SetText("No comments have been saved for this quest yet.")
@@ -270,16 +338,26 @@ tracker:SetScript("OnEvent", function(_, event)
 end)
 
 local minimapButton = CreateFrame("Button", "WowheadQuestCommentsMinimapButton", Minimap)
-minimapButton:SetSize(32, 32)
+minimapButton:SetSize(26, 26)
 minimapButton:SetFrameStrata("MEDIUM")
 minimapButton:SetFrameLevel(Minimap:GetFrameLevel() + 8)
 minimapButton:RegisterForClicks("LeftButtonUp")
 minimapButton:RegisterForDrag("LeftButton")
 
+local buttonBackground = minimapButton:CreateTexture(nil, "BACKGROUND")
+buttonBackground:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+buttonBackground:SetSize(26, 26)
+buttonBackground:SetPoint("CENTER")
+
 local buttonIcon = minimapButton:CreateTexture(nil, "ARTWORK")
-buttonIcon:SetTexture("Interface\\AddOns\\WowheadQuestComments\\Media\\MinimapIcon")
-buttonIcon:SetSize(30, 30)
+buttonIcon:SetTexture("Interface\\AddOns\\WowheadQuestComments\\Media\\WindowLogo")
+buttonIcon:SetSize(20, 20)
 buttonIcon:SetPoint("CENTER")
+
+local buttonBorder = minimapButton:CreateTexture(nil, "OVERLAY")
+buttonBorder:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+buttonBorder:SetSize(53, 53)
+buttonBorder:SetPoint("CENTER")
 
 local directionX = -0.70710678
 local directionY = -0.70710678
@@ -331,9 +409,9 @@ minimapButton:SetScript("OnDragStop", function(self)
     end
 end)
 minimapButton:SetScript("OnEnter", function(self)
-    buttonIcon:SetVertexColor(1, 0.85, 0.55)
+    buttonIcon:SetVertexColor(1.25, 1.25, 1.25)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:SetText("Wowhead Quest comments")
+    GameTooltip:SetText("Community Quest Comments")
     GameTooltip:AddLine("Show comments for the active quest", 1, 1, 1)
     GameTooltip:AddLine("Drag to move the button around the minimap", 0.7, 0.7, 0.7)
     GameTooltip:Show()

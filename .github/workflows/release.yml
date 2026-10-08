@@ -63,7 +63,7 @@ jobs:
             gh release upload "$RELEASE_TAG" "$archive" --clobber
           else
             gh release create "$RELEASE_TAG" "$archive" \
-              --title "Wowhead Quest Comments $RELEASE_TAG" \
+              --title "Community Quest Comments $RELEASE_TAG" \
               --notes 'Extract the ZIP directly into `_retail_/Interface/AddOns/`, then run `/reload` in WoW. The archive contains the `WowheadQuestComments/` folder.' \
               --generate-notes --verify-tag
           fi

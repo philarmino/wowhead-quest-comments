@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.2.6 — 2026-10-08
+
+- Rebrand the visible UI to **Community Quest Comments** (addon folder and SavedVariables stay `WowheadQuestComments`).
+- Minimap: smaller round button with WindowLogo, standard tracking border/background, brighter hover, updated tooltip title.
+- Title uses body-like `GameFontHighlight` sizing; context line is `QuestID <n>` only with a clickable Wowhead link (clipboard or copy popup).
+- Stronger header divider and uniform comment row spacing (`ROW_TOP_PAD`) between dividers and the next author line.
+
 ## 0.2.5 — 2026-10-08
 
 - Brand the in-game UI with shipped TGA media: custom minimap icon (no Blizzard tracking chrome), WindowLogo in the comment-window header beside the title “Wowhead Quest Comments”, and slightly warmer gold border/divider colors matched to the logo.

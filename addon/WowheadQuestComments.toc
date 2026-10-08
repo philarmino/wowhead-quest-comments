@@ -1,8 +1,8 @@
 ## Interface: 120100
-## Title: Wowhead Quest Comments
-## Notes: Shows useful Wowhead comments for quests
+## Title: Community Quest Comments
+## Notes: Shows useful community quest comments for the active quest
 ## Author: m4rv & philarmino
-## Version: 0.2.5
+## Version: 0.2.6
 ## SavedVariables: WowheadQuestCommentsSettings
 ## IconTexture: Interface\AddOns\WowheadQuestComments\Media\MinimapIcon
 

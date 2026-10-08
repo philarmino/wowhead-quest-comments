@@ -8,7 +8,9 @@ local function widget(parent)
     if parent then parent.children[#parent.children+1] = w end
     return w
 end
-for name in ("SetPoint SetFrameStrata SetClampedToScreen EnableMouse SetMovable SetResizable SetResizeBounds RegisterForDrag SetBackdrop SetBackdropColor SetBackdropBorderColor ClearAllPoints SetJustifyH SetJustifyV SetWordWrap SetNormalTexture SetHighlightTexture SetPushedTexture SetColorTexture UpdateScrollChildRect SetVerticalScroll SetFrameLevel RegisterForClicks SetTexture SetVertexColor RegisterEvent UnregisterEvent StartMoving StopMovingOrSizing StartSizing"):gmatch('%S+') do Widget[name]=function() end end
+for name in ("SetPoint SetFrameStrata SetClampedToScreen EnableMouse SetMovable SetResizable SetResizeBounds RegisterForDrag SetBackdrop SetBackdropColor SetBackdropBorderColor ClearAllPoints SetJustifyH SetJustifyV SetWordWrap SetNormalTexture SetHighlightTexture SetPushedTexture SetColorTexture UpdateScrollChildRect SetVerticalScroll SetFrameLevel RegisterForClicks SetTexture SetVertexColor RegisterEvent UnregisterEvent StartMoving StopMovingOrSizing StartSizing SetFocus HighlightText"):gmatch('%S+') do Widget[name]=function() end end
+function Widget:Enable() self.enabled=true end
+function Widget:Disable() self.enabled=false end
 function Widget:SetSize(w,h) self.width=w; self.height=h end
 function Widget:SetWidth(w) self.width=w end
 function Widget:SetHeight(h) self.height=h end
@@ -34,6 +36,7 @@ function Widget:SetScript(event,callback) self.scripts[event]=callback end
 function Widget:HookScript(event,callback) self.scripts[event]=callback end
 function CreateFrame(kind,name,parent) local w=widget(parent); if name then _G[name]=w end; return w end
 UIParent=widget(); Minimap=widget(); SlashCmdList={}; GameTooltip=widget()
+StaticPopupDialogs={}; StaticPopup_Show=function() end; CLOSE='Close'
 local active=13943
 C_SuperTrack={GetSuperTrackedQuestID=function() return active end}
 local ns={}
@@ -44,12 +47,13 @@ for line in io.lines('addon/WowheadQuestComments.toc') do
 end
 for _,obj in ipairs(objects) do if obj.scripts.OnEvent then obj.scripts.OnEvent(obj,'ADDON_LOADED','WowheadQuestComments') end end
 local function context()
-    -- children: [1] WindowLogo texture, [2] title, [3] context line
-    return WowheadQuestCommentsFrame.children[3].text
+    -- children: [1] WindowLogo texture, [2] title, [3] context button -> label
+    local ctx = WowheadQuestCommentsFrame.children[3]
+    return (ctx.children[1] and ctx.children[1].text) or ctx.text
 end
 local checked = 0
 local function expectQuest(id, comments)
-    assert(context():find('Quest '..id..'  ·  '..#comments..' comments',1,true), context())
+    assert(context():find('QuestID '..id,1,true), context())
     local visible = {}
     for _,obj in ipairs(objects) do
         if obj.body and obj.shown then visible[#visible+1] = obj end
@@ -148,7 +152,7 @@ assert(context():find('No active quest',1,true))
 local messages, originalPrint = {}, print
 print = function(text) messages[#messages+1] = text end
 run('debug 13943')
-assert(messages[1]:find('Core 0.2.5',1,true))
+assert(messages[1]:find('Core 0.2.6',1,true))
 assert(messages[1]:find(ns.dataBuild,1,true))
 local numericKeys = 0
 for _ in pairs(db) do numericKeys = numericKeys + 1 end
