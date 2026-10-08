@@ -4,6 +4,8 @@ local settings
 
 local GOLD = "|cffffd27a"
 local MUTED = "|cff9ca3ad"
+-- Field order of each comment in Data.lua, written by scripts/pipeline.ts generateLua.
+local AUTHOR, SCORE, DATE, TEXT = 1, 2, 3, 4
 
 local commentFrame = CreateFrame("Frame", "WowheadQuestCommentsFrame", UIParent, "BackdropTemplate")
 commentFrame:SetSize(460, 390)
@@ -219,13 +221,13 @@ local function ShowComments(questID)
 
             for index, comment in ipairs(comments) do
                 local row = GetRow(index)
-                row.author:SetText(comment.author or "Unknown")
+                row.author:SetText(comment[AUTHOR] or "Unknown")
                 -- Preserve the source calendar date without converting time zones.
-                local writtenDate = type(comment.date) == "string" and comment.date:match("^(%d%d%d%d%-%d%d%-%d%d)") or ""
-                row.date:SetText(writtenDate or "")
-                local score = tonumber(comment.score) or 0
+                local writtenDate = comment[DATE]
+                row.date:SetText(type(writtenDate) == "string" and writtenDate or "")
+                local score = tonumber(comment[SCORE]) or 0
                 row.score:SetText(GOLD .. (score > 0 and "+" or "") .. tostring(score) .. "|r")
-                row.body:SetText(comment.text or "")
+                row.body:SetText(comment[TEXT] or "")
                 row.divider:SetShown(index < count)
                 row:Show()
             end

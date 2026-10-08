@@ -14,6 +14,11 @@ export interface RawComment {
 export interface RawData {
   schemaVersion: 1; questId: number; sourceUrl: string; fetchedAt: string;
   comments: RawComment[];
+  notFound?: true;
+}
+export interface NotFoundData {
+  schemaVersion: 1; questId: number; sourceUrl: string; fetchedAt: string;
+  comments: []; notFound: true;
 }
 export interface Comment { id: number; author: string; score: number; text: string; date: string; sourceUrl: string }
 export interface ProcessedData extends Omit<RawData, 'comments'> { comments: Comment[] }
@@ -92,15 +97,28 @@ export function verifyQuestPage(html: string, questId: number) {
 export function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
+export function isNotFoundRaw(value: unknown, questId: number): value is NotFoundData {
+  return isObject(value) && value.schemaVersion === 1 && value.questId === questId &&
+    value.notFound === true && Array.isArray(value.comments) && value.comments.length === 0 &&
+    typeof value.sourceUrl === 'string' && typeof value.fetchedAt === 'string';
+}
+
 export function validateRaw(value: unknown, questId: number): asserts value is RawData {
+  if (isNotFoundRaw(value, questId))
+    throw new Error('Raw cache marks this quest as missing on Wowhead.');
   if (!isObject(value) || value.schemaVersion !== 1 || value.questId !== questId ||
-      typeof value.sourceUrl !== 'string' || typeof value.fetchedAt !== 'string' || !Array.isArray(value.comments))
+      typeof value.sourceUrl !== 'string' || typeof value.fetchedAt !== 'string' || !Array.isArray(value.comments) ||
+      value.notFound === true)
     throw new Error('Invalid raw data or incorrect quest ID.');
   for (const c of value.comments) {
     if (!isObject(c) || !Number.isSafeInteger(c.id) || typeof c.user !== 'string' ||
         typeof c.body !== 'string' || typeof c.rating !== 'number' || !Number.isFinite(c.rating) || typeof c.date !== 'string')
       throw new Error('Unexpected Wowhead comment format. Existing data will not be replaced.');
   }
+}
+
+export function notFoundRaw(questId: number, sourceUrl: string, fetchedAt = new Date().toISOString()): NotFoundData {
+  return { schemaVersion: 1, questId, sourceUrl, fetchedAt, comments: [], notFound: true };
 }
 
 // Read JSON only: never execute JavaScript from a downloaded page.
@@ -128,6 +146,9 @@ export function extractComments(html: string): RawComment[] {
   throw new Error('Incomplete comment dataset.');
 }
 
+const ENTITY = 'quest|item|npc|spell|object|achievement|zone|currency|faction|storyline|title|follower|class|race|garrisonability|mission|itemset|skill|pet|event';
+const entityTag = new RegExp(`\\[(${ENTITY})=(\\d+)[^\\]]*\\]([\\s\\S]*?)\\[\\/\\1\\]`, 'gi');
+const bareEntityTag = new RegExp(`\\[(${ENTITY})=(\\d+)(?:\\.\\d+)?\\]`, 'gi');
 export function plainText(body: string): string {
   return decodeHTML(body
     .replace(/\\r\\n|\\n|\\r/g, '\n')
@@ -135,11 +156,15 @@ export function plainText(body: string): string {
     .replace(/<\/(?:p|div|li)>/gi, '\n')
     .replace(/<[^>]*>/g, '')
     .replace(/\[url=([^\]]+)\]([\s\S]*?)\[\/url\]/gi, '$2 ($1)')
-    .replace(/\[(quest|item|npc|spell|object|achievement)=(\d+)[^\]]*\]([\s\S]*?)\[\/\1\]/gi, '$3 (https://www.wowhead.com/$1=$2)')
-    .replace(/\[(quest|item|npc|spell|object|achievement)=(\d+)\]/gi, 'https://www.wowhead.com/$1=$2')
-    .replace(/\[\*\]/g, '\n• ')
-    .replace(/\[\/?(?:b|i|u|s|small|quote|code|ul|ol|li|list|color|size|url)(?:=[^\]]*)?\]/gi, '')
-  ).replace(/\r\n?/g, '\n').replace(/[\t ]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    .replace(entityTag, '$3 (https://www.wowhead.com/$1=$2)')
+    .replace(bareEntityTag, 'https://www.wowhead.com/$1=$2')
+    .replace(/\[icondb=\d+\]/gi, '')
+    .replace(/\[(?:\*|li)\]/gi, '\n• ')
+    .replace(/\[(?:\/?tr|\/?table[^\]]*|hr|br)\]/gi, '\n')
+    .replace(/\[\/td\]/gi, ' ')
+    .replace(/\[\/?(?:b|i|u|s|small|quote|code|ul|ol|li|list|color|size|url|td|pre|ins|del|spoiler|sup|sub|h[1-6]|center)(?:[= ][^\]]*)?\]/gi, '')
+  ).replace(/https?:\/\/(?:www\.)?wowhead\.com\/\??/gi, 'wowhead.com/')
+    .replace(/\r\n?/g, '\n').replace(/[\t\u00a0 ]+/g, ' ').replace(/ ?\n ?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 export function processComments(raw: RawData, limit: number): ProcessedData {
   const seenIds = new Set<number>(), seenText = new Set<string>();
@@ -162,28 +187,56 @@ export function luaString(value: string): string {
     .replace(/\n/g, '\\n').replace(/\r/g, '\\r')
     .replace(/[\x00-\x1f\x7f]/g, c => '\\' + c.charCodeAt(0).toString().padStart(3, '0')) + '"';
 }
+// Lua 5.1 allows at most 262143 constants per function, so statements are split into chunk functions.
+const ENTRIES_PER_CHUNK = 2000;
+// Shorter repeated texts cost less inline than as a T[n] reference.
+const SHARED_TEXT_MIN_LENGTH = 40;
+function pushChunks(lines: string[], statements: { line: string; weight: number }[]) {
+  let weight = 0;
+  for (const statement of statements) {
+    if (weight && weight + statement.weight > ENTRIES_PER_CHUNK) { lines.push('end)()'); weight = 0; }
+    if (!weight) lines.push(';(function()');
+    lines.push(statement.line);
+    weight += Math.max(1, statement.weight);
+  }
+  if (weight) lines.push('end)()');
+}
+// Comments are emitted as { author, score, "YYYY-MM-DD", text }; see the field indices in Core.lua.
 export function generateLua(input: ProcessedData | ProcessedData[]): string {
-  const datasets = Array.isArray(input) ? input : [input];
+  const datasets = [...(Array.isArray(input) ? input : [input])].sort((a, b) => a.questId - b.questId);
   const seen = new Set<number>();
-  const lines = ['-- Generated by npm run generate; do not edit manually.', 'local _, ns = ...', 'ns.db = {'];
-  for (const data of [...datasets].sort((a, b) => a.questId - b.questId)) {
+  // Escape WoW markup too: comments must not inject texture, link or color codes.
+  const display = (s: string) => luaString(s.replace(/\|/g, '||'));
+  const textCounts = new Map<string, number>();
+  for (const data of datasets) {
     if (!Number.isSafeInteger(data.questId) || data.questId <= 0 || !Array.isArray(data.comments) || seen.has(data.questId))
       throw new Error('Invalid or duplicate quest data.');
     seen.add(data.questId);
-    lines.push(`    [${data.questId}] = {`);
     for (const c of data.comments) {
       if (!Number.isSafeInteger(c.id) || !Number.isFinite(c.score) ||
           [c.author, c.text, c.date, c.sourceUrl].some(v => typeof v !== 'string'))
         throw new Error('Invalid processed comment.');
-      // Escape WoW markup too: comments must not inject texture, link or color codes.
-      const display = (s: string) => luaString(s.replace(/\|/g, '||'));
-      lines.push('        {', `            id = ${c.id},`, `            score = ${c.score},`,
-        `            author = ${display(c.author)},`, `            text = ${display(c.text)},`,
-        `            date = ${luaString(c.date)},`, `            sourceUrl = ${luaString(c.sourceUrl)},`, '        },');
+      textCounts.set(c.text, (textCounts.get(c.text) ?? 0) + 1);
     }
-    lines.push('    },');
   }
-  lines.push('}', '');
+  const shared = new Map<string, number>();
+  const sharedStatements: { line: string; weight: number }[] = [];
+  for (const [text, count] of textCounts) {
+    if (count < 2 || text.length < SHARED_TEXT_MIN_LENGTH) continue;
+    shared.set(text, shared.size + 1);
+    sharedStatements.push({ line: `T[${shared.size}]=${display(text)}`, weight: 1 });
+  }
+  const questStatements = datasets.map(data => ({
+    line: `db[${data.questId}]={` + data.comments.map(c => {
+      const text = shared.has(c.text) ? `T[${shared.get(c.text)}]` : display(c.text);
+      return `{${display(c.author)},${c.score},${luaString(c.date.slice(0, 10))},${text}}`;
+    }).join(',') + '}',
+    weight: data.comments.length,
+  }));
+  const lines = ['-- Generated by npm run generate; do not edit manually.', 'local _, ns = ...', 'local db, T = {}, {}', 'ns.db = db'];
+  pushChunks(lines, sharedStatements);
+  pushChunks(lines, questStatements);
+  lines.push('');
   const build = createHash('sha256').update(lines.join('\n')).digest('hex').slice(0, 12);
   lines.splice(2, 0, `ns.dataBuild = ${luaString(build)}`);
   return lines.join('\n');

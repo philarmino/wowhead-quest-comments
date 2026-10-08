@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { atomicWrite, dataPath, extractComments, options, questIds, readJson, root, validateRaw, verifyQuestPage } from './pipeline.ts';
+import { atomicWrite, dataPath, extractComments, isNotFoundRaw, notFoundRaw, options, questIds, readJson, root, validateRaw, verifyQuestPage } from './pipeline.ts';
 import { fetchQuestHtml, requestGate, WowheadHttpError } from './wowhead-http.ts';
 import { areaIds, expansionId, selectAreaQuestIds } from './area-selection.ts';
 
@@ -75,10 +75,17 @@ async function main() {
 
   const missing: number[] = [];
   let cachedCount = 0;
+  let notFoundCached = 0;
   for (const id of ids) {
     if (!fullRefresh && !htmlPath) {
       try {
         const cached = await readJson(dataPath('raw', id));
+        if (isNotFoundRaw(cached, id)) {
+          cachedCount++;
+          notFoundCached++;
+          if (!batchMode) console.log(`Quest ${id}: marked missing on Wowhead (${cached.fetchedAt}).`);
+          continue;
+        }
         validateRaw(cached, id);
         cachedCount++;
         if (!batchMode) console.log(`Quest ${id}: ${cached.comments.length} comments from cache (${cached.fetchedAt}).`);
@@ -93,7 +100,9 @@ async function main() {
   const workers = Math.min(concurrency, selected.length || 1);
   const etaMs = selected.length === 0 || htmlPath ? 0 : selected.length * delayMs;
   console.log(
-    `Plan: ${cachedCount} cached, ${missing.length} missing` +
+    `Plan: ${cachedCount} cached` +
+    `${notFoundCached > 0 ? ` (${notFoundCached} not found on Wowhead)` : ''}` +
+    `, ${missing.length} missing` +
     `${maxRequests !== undefined ? `, fetching ${selected.length} this run (--max-requests ${maxRequests})` : `, fetching ${selected.length}`}` +
     `${deferred > 0 ? `, ${deferred} deferred` : ''}` +
     `${fullRefresh ? ', full refresh' : ''}.`,
@@ -108,12 +117,16 @@ async function main() {
   }
   console.log(statusLine(cachedCount, ids.length, 0, selected.length));
 
-  let next = 0, completed = 0, saved = 0, stop = false;
+  let next = 0, completed = 0, saved = 0, notFound = 0, stop = false;
   const startedAt = Date.now();
   const takeSlot = requestGate(delayMs);
   const errors: Array<{ id: number; message: string }> = [];
   const interval = progressInterval(selected.length);
   const verboseQuestLogs = !batchMode;
+
+  function resolvedCount() {
+    return cachedCount + saved + notFound;
+  }
 
   function logProgress(force = false) {
     if (!selected.length) return;
@@ -123,8 +136,8 @@ async function main() {
     const remainingWork = selected.length - completed;
     const eta = rate > 0 && remainingWork > 0 ? `, ETA ${formatDuration(rate * remainingWork)}` : '';
     console.log(
-      `${statusLine(cachedCount + saved, ids.length, completed, selected.length)}` +
-      `  ·  ${saved} saved, ${errors.length} failed, elapsed ${formatDuration(elapsed)}${eta}`,
+      `${statusLine(resolvedCount(), ids.length, completed, selected.length)}` +
+      `  ·  ${saved} saved, ${notFound} not found, ${errors.length} failed, elapsed ${formatDuration(elapsed)}${eta}`,
     );
   }
 
@@ -145,12 +158,18 @@ async function main() {
         saved++;
         if (verboseQuestLogs) console.log(`Quest ${id}: ${comments.length} comments saved.`);
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        errors.push({ id, message });
-        console.error(`Quest ${id}: ${message} Existing data has been preserved.`);
-        if (error instanceof WowheadHttpError && error.status === 403 && !stop) {
-          stop = true;
-          console.error('HTTP 403 access denied. Stopping this run; cached data is intact.');
+        if (error instanceof WowheadHttpError && error.status === 404) {
+          await atomicWrite(dataPath('raw', id), JSON.stringify(notFoundRaw(id, sourceUrl), null, 2) + '\n');
+          notFound++;
+          console.error(`Quest ${id}: Wowhead has no page for this quest (HTTP 404). Marked as missing.`);
+        } else {
+          const message = error instanceof Error ? error.message : String(error);
+          errors.push({ id, message });
+          console.error(`Quest ${id}: ${message} Existing data has been preserved.`);
+          if (error instanceof WowheadHttpError && error.status === 403 && !stop) {
+            stop = true;
+            console.error('HTTP 403 access denied. Stopping this run; cached data is intact.');
+          }
         }
       }
       completed++;
@@ -160,7 +179,7 @@ async function main() {
   await Promise.all(Array.from({ length: Math.min(concurrency, selected.length) }, () => worker()));
   if (selected.length && completed > 0 && completed !== selected.length && completed % interval !== 0) logProgress(true);
 
-  const remaining = ids.length - cachedCount - saved;
+  const remaining = ids.length - resolvedCount();
   const report = {
     at: new Date().toISOString(),
     allAreas: allAreas || (!selection && questId === undefined),
@@ -172,8 +191,10 @@ async function main() {
     concurrency: workers,
     total: ids.length,
     cached: cachedCount,
+    notFoundCached,
     attempted: completed,
     saved,
+    notFound,
     failed: errors.length,
     deferred,
     remaining,
@@ -184,7 +205,7 @@ async function main() {
   await atomicWrite(resolve(root, 'data', 'wowhead-fetch-report.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(
     `remaining ${String(remaining).padStart(5)}  Fetch complete in ${formatDuration(report.elapsedMs)}: ` +
-    `${saved} saved, ${cachedCount} were cached, ${errors.length} failed` +
+    `${saved} saved, ${notFound} not found, ${cachedCount} were cached, ${errors.length} failed` +
     `${deferred > 0 ? `, ${deferred} deferred by --max-requests` : ''}` +
     `, ${remaining} still missing` +
     `${stop ? ' (stopped on 403)' : ''}.`,

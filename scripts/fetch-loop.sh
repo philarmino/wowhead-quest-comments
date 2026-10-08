@@ -99,7 +99,8 @@ trap 'rm -f "$PIDFILE"' EXIT
 
 log() { printf '%s %s\n' "$(date -Iseconds)" "$*" >>"$LOG"; }
 
-# Prints: remaining saved deferred stoppedOn403 total done
+# Prints: remaining resolved deferred stoppedOn403 total done
+# "resolved" counts newly saved comments plus newly marked 404s.
 # remaining is -1 when this expansion has no report yet.
 run_stats() {
   if [[ ! -f "$REPORT" ]]; then
@@ -117,12 +118,12 @@ run_stats() {
       process.exit(0);
     }
     const remaining = Number(r.remaining ?? -1);
-    const saved = Number(r.saved ?? 0);
+    const resolved = Number(r.saved ?? 0) + Number(r.notFound ?? 0);
     const deferred = Number(r.deferred ?? 0);
     const stopped = r.stoppedOn403 ? 1 : 0;
     const total = Number(r.total ?? 0);
-    const done = remaining >= 0 && total > 0 ? Math.max(0, total - remaining) : Number(r.cached ?? 0) + saved;
-    process.stdout.write(`${remaining} ${saved} ${deferred} ${stopped} ${total} ${done}`);
+    const done = remaining >= 0 && total > 0 ? Math.max(0, total - remaining) : Number(r.cached ?? 0) + resolved;
+    process.stdout.write(`${remaining} ${resolved} ${deferred} ${stopped} ${total} ${done}`);
   ' "$REPORT" "$EXPANSION"
 }
 
@@ -162,8 +163,8 @@ while true; do
   "$NPM" run fetch -- "${FETCH_SELECTOR[@]}" --max-requests "$MAX_REQUESTS" >>"$LOG" 2>&1
   status=$?
   set -e
-  read -r remaining saved deferred stopped403 total done <<<"$(run_stats)"
-  log "==== fetch end remaining ${remaining} (exit ${status}, saved ${saved}, deferred ${deferred}) ===="
+  read -r remaining resolved deferred stopped403 total done <<<"$(run_stats)"
+  log "==== fetch end remaining ${remaining} (exit ${status}, resolved ${resolved}, deferred ${deferred}) ===="
 
   if [[ "$remaining" == "0" ]]; then
     overall="$(overall_progress_line "$remaining" "$total" "$done")"
@@ -172,12 +173,12 @@ while true; do
     exit 0
   fi
 
-  # Every missing quest was attempted and none were saved. Another pass would
-  # request the same failures again (for example permanent HTTP 404s).
-  if [[ "$saved" == "0" && "$deferred" == "0" && "$stopped403" != "1" && "$remaining" != "-1" ]]; then
+  # Every missing quest was attempted and none were resolved (saved or marked
+  # 404). Another pass would request the same failures again.
+  if [[ "$resolved" == "0" && "$deferred" == "0" && "$stopped403" != "1" && "$remaining" != "-1" ]]; then
     overall="$(overall_progress_line "$remaining" "$total" "$done")"
     [[ -n "$overall" ]] && log "$overall"
-    log "no quests saved and none left unattempted (${remaining} still missing); exiting loop"
+    log "no quests resolved and none left unattempted (${remaining} still missing); exiting loop"
     exit 0
   fi
 

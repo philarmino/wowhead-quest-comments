@@ -55,8 +55,9 @@ local function expectQuest(id, comments)
     end
     assert(#visible == #comments, 'Wrong number of visible comment rows')
     for i,comment in ipairs(comments) do
-        assert(visible[i].body.text == comment.text, 'Wrong rendered comment text')
-        assert(visible[i].author.text == comment.author, 'Wrong rendered author')
+        assert(visible[i].body.text == comment[4], 'Wrong rendered comment text')
+        assert(visible[i].author.text == comment[1], 'Wrong rendered author')
+        assert(visible[i].date.text == comment[3] and comment[3]:match('^%d%d%d%d%-%d%d%-%d%d$'), 'Wrong rendered date')
     end
     checked = checked + 1
 end

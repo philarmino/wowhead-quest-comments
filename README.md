@@ -77,7 +77,7 @@ npm run generate
 2. `npm run process`: process every locally cached raw quest, including quests fetched with `--quest`, `--area`, or `--expansion`. The same area and expansion selectors can limit processing. Exclude deleted, outdated, indented, and duplicate comments. Select up to five top-rated main comments, without replies. Store results in `data/processed/{QuestID}.json`.
 3. `npm run generate`: bundle every locally processed quest, validate Lua 5.1 syntax, and atomically replace `addon/Data.lua`. The generated data includes a deterministic build ID for diagnostics. Unfetched quests are omitted; empty comment lists only appear when a processed file exists with no selected comments.
 
-A failed fetch does not replace existing cache files. An HTTP 403 stops the current run; other failures are reported and the batch continues. Quests whose processed file has no selected comments appear in the addon as “No comments have been saved for this quest yet.” Running the pipeline again retries quests without raw data.
+A failed fetch does not replace existing cache files. An HTTP 404 writes a small `notFound` marker so that ID is skipped on later runs (Battle.net lists many IDs Wowhead never published). Process skips those markers. An HTTP 403 stops the current run; other failures are reported and the batch continues. Quests whose processed file has no selected comments appear in the addon as “No comments have been saved for this quest yet.” Running the pipeline again retries quests without raw data.
 
 The scripts run outside WoW. Copy the generated `Data.lua` into the installed addon folder and run `/reload`.
 

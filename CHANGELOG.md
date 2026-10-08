@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Fix `Data.lua:1 constant table overflow` in game: the generator splits the database into chunk functions so no Lua 5.1 function exceeds the 262,143-constant limit.
+- Shrink `Data.lua` from 50 MB to 23 MB and in-game memory from about 58 MB to 35 MB: comments are stored as `{ author, score, "YYYY-MM-DD", text }` without the unused `id` and `sourceUrl`, repeated long texts are stored once, and indentation is dropped. `Core.lua` reads the new layout, so `Core.lua` and `Data.lua` must be updated together.
+- Clean up comment text: flatten `[table]`/`[tr]`/`[td]` markup, render `[li]` as bullets, strip `[pre]`, `[spoiler]`, `[ins]`, `[del]` and similar tags, resolve more entity tags (`zone`, `currency`, `faction`, `storyline`, …), collapse tab and non-breaking-space runs, and shorten Wowhead links to `wowhead.com/quest=123`.
+- Mark Wowhead HTTP 404 responses as permanently missing in the raw cache (`notFound: true`) so later batches can move past deleted or never-published quest IDs. Process skips those markers; `--full-refresh` can retry them.
 - Accept `all` as the `scripts/fetch-loop.sh` target to loop over the full quest list, with its own lock, PID, and log file (`data/logs/fetch-all.log`).
 - Explain the missing `--` when npm forwards a bare value such as `npm run fetch --max-requests 99`.
 
