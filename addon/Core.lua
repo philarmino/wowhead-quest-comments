@@ -1,5 +1,5 @@
 local addonName, ns = ...
-local CORE_BUILD = "0.2.4"
+local CORE_BUILD = "0.2.5"
 local settings
 
 local GOLD = "|cffffd27a"
@@ -27,7 +27,7 @@ commentFrame:SetBackdrop({
     insets = { left = 4, right = 4, top = 4, bottom = 4 }
 })
 commentFrame:SetBackdropColor(0.045, 0.055, 0.075, 0.97)
-commentFrame:SetBackdropBorderColor(0.55, 0.43, 0.24, 0.9)
+commentFrame:SetBackdropBorderColor(0.72, 0.55, 0.28, 0.95)
 commentFrame:Hide()
 
 local function SaveWindowGeometry()
@@ -48,14 +48,19 @@ commentFrame:SetScript("OnDragStop", function(self)
     SaveWindowGeometry()
 end)
 
+local windowLogo = commentFrame:CreateTexture(nil, "ARTWORK")
+windowLogo:SetTexture("Interface\\AddOns\\WowheadQuestComments\\Media\\WindowLogo")
+windowLogo:SetSize(48, 48)
+windowLogo:SetPoint("TOPLEFT", 18, -18)
+
 local title = commentFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-title:SetPoint("TOPLEFT", 25, -27)
-title:SetText("Quest comments")
+title:SetPoint("TOPLEFT", windowLogo, "TOPRIGHT", 12, -2)
+title:SetText("Wowhead Quest Comments")
 
 local context = commentFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-context:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
+context:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
 context:SetJustifyH("LEFT")
-context:SetWidth(360)
+context:SetWidth(340)
 
 local closeButton = CreateFrame("Button", nil, commentFrame, "UIPanelCloseButton")
 closeButton:SetPoint("TOPRIGHT", -8, -8)
@@ -78,11 +83,11 @@ resizeButton:SetScript("OnMouseUp", function()
 end)
 
 local scrollFrame = CreateFrame("ScrollFrame", nil, commentFrame, "UIPanelScrollFrameTemplate")
-scrollFrame:SetPoint("TOPLEFT", 25, -94)
+scrollFrame:SetPoint("TOPLEFT", 25, -112)
 scrollFrame:SetPoint("BOTTOMRIGHT", -43, 23)
 
 local headerDivider = commentFrame:CreateTexture(nil, "ARTWORK")
-headerDivider:SetColorTexture(1, 1, 1, 0.1)
+headerDivider:SetColorTexture(0.78, 0.62, 0.32, 0.22)
 headerDivider:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, 8)
 headerDivider:SetPoint("TOPRIGHT", scrollFrame, "TOPRIGHT", -36, 8)
 headerDivider:SetHeight(1)
@@ -136,7 +141,7 @@ local function GetRow(index)
     row.body:SetWordWrap(true)
 
     row.divider = row:CreateTexture(nil, "ARTWORK")
-    row.divider:SetColorTexture(1, 1, 1, 0.1)
+    row.divider:SetColorTexture(0.78, 0.62, 0.32, 0.22)
     row.divider:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
     row.divider:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
     row.divider:SetHeight(1)
@@ -146,7 +151,7 @@ local function GetRow(index)
 end
 
 local function LayoutRows()
-    context:SetWidth(math.max(200, commentFrame:GetWidth() - 100))
+    context:SetWidth(math.max(200, commentFrame:GetWidth() - 130))
     emptyText:SetWidth(math.max(200, scrollFrame:GetWidth() - 30))
 
     local contentWidth = math.max(200, scrollFrame:GetWidth() - 36)
@@ -271,20 +276,10 @@ minimapButton:SetFrameLevel(Minimap:GetFrameLevel() + 8)
 minimapButton:RegisterForClicks("LeftButtonUp")
 minimapButton:RegisterForDrag("LeftButton")
 
-local buttonBackground = minimapButton:CreateTexture(nil, "BACKGROUND")
-buttonBackground:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
-buttonBackground:SetSize(30, 30)
-buttonBackground:SetPoint("CENTER")
-
 local buttonIcon = minimapButton:CreateTexture(nil, "ARTWORK")
-buttonIcon:SetTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Up")
-buttonIcon:SetSize(23, 23)
-buttonIcon:SetPoint("CENTER", 0, 1)
-
-local buttonBorder = minimapButton:CreateTexture(nil, "OVERLAY")
-buttonBorder:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-buttonBorder:SetSize(52, 52)
-buttonBorder:SetPoint("TOPLEFT", minimapButton, "TOPLEFT", 1, -1)
+buttonIcon:SetTexture("Interface\\AddOns\\WowheadQuestComments\\Media\\MinimapIcon")
+buttonIcon:SetSize(30, 30)
+buttonIcon:SetPoint("CENTER")
 
 local directionX = -0.70710678
 local directionY = -0.70710678

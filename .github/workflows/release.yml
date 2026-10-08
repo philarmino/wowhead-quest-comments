@@ -47,6 +47,9 @@ jobs:
             'WowheadQuestComments/' \
             'WowheadQuestComments/Core.lua' \
             'WowheadQuestComments/Data.lua' \
+            'WowheadQuestComments/Media/' \
+            'WowheadQuestComments/Media/MinimapIcon.tga' \
+            'WowheadQuestComments/Media/WindowLogo.tga' \
             'WowheadQuestComments/WowheadQuestComments.toc' | sort) \
             <(unzip -Z1 "$archive" | sort)
           sha256sum "$archive"

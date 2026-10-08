@@ -1,11 +1,12 @@
 # Design
 
-- A comment button sits on the edge of the minimap. It can be dragged around the edge, and its position is saved across sessions.
+- A comment button sits on the edge of the minimap. It uses the custom scroll/quill minimap icon (no Blizzard tracking border), can be dragged around the edge, and its position is saved across sessions. Hover applies a light gold tint.
 - Clicking it toggles the comment window for the quest with the active waypoint (supertracking).
+- The window header shows the WindowLogo texture beside the title “Wowhead Quest Comments”; the muted context line under the title carries the quest ID and comment count.
 - The window can be moved, resized from the bottom-right corner, and closed with the top-right X. Position and size persist across sessions.
 - Long comments and multiple comments can be scrolled within the window.
 - Comment text is the main focus. Author names use a smaller font and muted gray; ratings remain gold and use signed numbers instead of a Unicode icon.
 - The posting date sits directly beside the author in yellow, one font size smaller. Author names are constrained to leave space for the date and rating when the window is narrow.
-- A thin divider separates the header from the first comment.
+- Chrome follows the logo’s gold/parchment palette: a warmer, slightly stronger tooltip border, and warm gold-alpha dividers for the header and between comment rows.
 - All interface text, diagnostics, script messages, and code comments are in English.
 - `/wqc preview` opens a quest with available comments. A specific quest can be opened with `/wqc <QuestID>`.

@@ -2,8 +2,11 @@
 ## Title: Wowhead Quest Comments
 ## Notes: Shows useful Wowhead comments for quests
 ## Author: m4rv & philarmino
-## Version: 0.2.4
+## Version: 0.2.5
 ## SavedVariables: WowheadQuestCommentsSettings
+## IconTexture: Interface\AddOns\WowheadQuestComments\Media\MinimapIcon
 
+Media\MinimapIcon.tga
+Media\WindowLogo.tga
 Data.lua
 Core.lua
