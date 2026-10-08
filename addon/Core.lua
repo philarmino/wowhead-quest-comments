@@ -1,5 +1,5 @@
 local addonName, ns = ...
-local CORE_BUILD = "0.2.6"
+local CORE_BUILD = "0.2.7"
 local settings
 
 local GOLD = "|cffffd27a"
@@ -67,52 +67,84 @@ title:SetTextColor(1, 1, 1)
 local contextButton = CreateFrame("Button", nil, commentFrame)
 contextButton:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
 contextButton:SetSize(340, 16)
+contextButton:RegisterForClicks("RightButtonUp")
 
 local contextLabel = contextButton:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 contextLabel:SetPoint("TOPLEFT", contextButton, "TOPLEFT", 0, 0)
 contextLabel:SetJustifyH("LEFT")
 contextLabel:SetWidth(340)
 
-StaticPopupDialogs["WQC_WOWHEAD_LINK"] = {
-    text = "Wowhead quest link (Ctrl+C to copy):",
-    button1 = CLOSE,
+local function GetPopupEditBox(dialog)
+    return dialog.GetEditBox and dialog:GetEditBox() or dialog.editBox
+end
+
+-- CopyToClipboard is protected for addons, so links are offered in a selectable edit box.
+StaticPopupDialogs["WQC_COPY_LINK"] = {
+    text = "Ctrl+A, Ctrl+C to copy to your clipboard.",
+    button1 = OKAY,
     hasEditBox = 1,
-    editBoxWidth = 280,
+    editBoxWidth = 300,
     OnShow = function(self, data)
-        self.editBox:SetText(data)
-        self.editBox:HighlightText()
-        self.editBox:SetFocus()
+        local editBox = GetPopupEditBox(self)
+        editBox:SetText(data)
+        editBox:HighlightText()
+        editBox:SetFocus()
+    end,
+    EditBoxOnTextChanged = function(editBox, data)
+        if editBox:GetText() ~= data then
+            editBox:SetText(data)
+            editBox:HighlightText()
+        end
+    end,
+    EditBoxOnEnterPressed = function(editBox)
+        editBox:GetParent():Hide()
+    end,
+    EditBoxOnEscapePressed = function(editBox)
+        editBox:GetParent():Hide()
     end,
     timeout = 0,
     whileDead = 1,
     hideOnEscape = 1,
+    preferredIndex = 3,
 }
 
-local function CopyWowheadLink(questID)
-    local url = "https://www.wowhead.com/quest=" .. tostring(questID)
-    if CopyToClipboard then
-        CopyToClipboard(url)
-        print("WQC: Copied Wowhead link to clipboard.")
-    else
-        StaticPopup_Show("WQC_WOWHEAD_LINK", nil, nil, url)
+local function ShowWowheadLink(questID)
+    if questID then
+        StaticPopup_Show("WQC_COPY_LINK", nil, nil, "https://www.wowhead.com/quest=" .. questID)
     end
 end
 
 contextButton:SetScript("OnClick", function(self)
-    if self.questID then
-        CopyWowheadLink(self.questID)
-    end
+    ShowWowheadLink(self.questID)
 end)
 contextButton:SetScript("OnEnter", function(self)
     if not self.questID then
         return
     end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetText("Copy Wowhead link")
-    GameTooltip:AddLine("Click to copy the quest URL to your clipboard.", 1, 1, 1)
+    GameTooltip:SetText("QuestID " .. self.questID)
+    GameTooltip:AddLine("Right-click to copy the Wowhead link.", 1, 1, 1)
     GameTooltip:Show()
 end)
 contextButton:SetScript("OnLeave", function()
+    GameTooltip:Hide()
+end)
+
+local wowheadButton = CreateFrame("Button", nil, commentFrame, "UIPanelButtonTemplate")
+wowheadButton:SetSize(96, 22)
+wowheadButton:SetPoint("BOTTOMLEFT", 22, 16)
+wowheadButton:SetText("Wowhead")
+wowheadButton:Disable()
+wowheadButton:SetScript("OnClick", function(self)
+    ShowWowheadLink(self.questID)
+end)
+wowheadButton:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetText("Wowhead")
+    GameTooltip:AddLine("Show the quest link to copy.", 1, 1, 1)
+    GameTooltip:Show()
+end)
+wowheadButton:SetScript("OnLeave", function()
     GameTooltip:Hide()
 end)
 
@@ -137,13 +169,13 @@ resizeButton:SetScript("OnMouseUp", function()
 end)
 
 local scrollFrame = CreateFrame("ScrollFrame", nil, commentFrame, "UIPanelScrollFrameTemplate")
-scrollFrame:SetPoint("TOPLEFT", 25, -120)
-scrollFrame:SetPoint("BOTTOMRIGHT", -43, 23)
+scrollFrame:SetPoint("TOPLEFT", 25, -86)
+scrollFrame:SetPoint("BOTTOMRIGHT", -43, 46)
 
 local headerDivider = commentFrame:CreateTexture(nil, "ARTWORK")
 headerDivider:SetColorTexture(0.78, 0.62, 0.32, 0.48)
-headerDivider:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, 10)
-headerDivider:SetPoint("TOPRIGHT", scrollFrame, "TOPRIGHT", -36, 10)
+headerDivider:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, 8)
+headerDivider:SetPoint("TOPRIGHT", scrollFrame, "TOPRIGHT", -36, 8)
 headerDivider:SetHeight(2)
 
 local scrollChild = CreateFrame("Frame", nil, scrollFrame)
@@ -206,14 +238,16 @@ end
 
 local function SetContextMessage(text)
     contextLabel:SetText(text)
-    contextButton:Disable()
     contextButton.questID = nil
+    wowheadButton:Disable()
+    wowheadButton.questID = nil
 end
 
 local function SetContextQuest(questID)
     contextLabel:SetText(LINK .. "QuestID " .. questID .. "|r")
-    contextButton:Enable()
     contextButton.questID = questID
+    wowheadButton:Enable()
+    wowheadButton.questID = questID
 end
 
 local function LayoutRows()
@@ -338,26 +372,28 @@ tracker:SetScript("OnEvent", function(_, event)
 end)
 
 local minimapButton = CreateFrame("Button", "WowheadQuestCommentsMinimapButton", Minimap)
-minimapButton:SetSize(26, 26)
+minimapButton:SetSize(31, 31)
 minimapButton:SetFrameStrata("MEDIUM")
 minimapButton:SetFrameLevel(Minimap:GetFrameLevel() + 8)
 minimapButton:RegisterForClicks("LeftButtonUp")
 minimapButton:RegisterForDrag("LeftButton")
+minimapButton:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
 
 local buttonBackground = minimapButton:CreateTexture(nil, "BACKGROUND")
 buttonBackground:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
-buttonBackground:SetSize(26, 26)
-buttonBackground:SetPoint("CENTER")
+buttonBackground:SetSize(24, 24)
+buttonBackground:SetPoint("CENTER", 0, 1)
 
 local buttonIcon = minimapButton:CreateTexture(nil, "ARTWORK")
-buttonIcon:SetTexture("Interface\\AddOns\\WowheadQuestComments\\Media\\WindowLogo")
+buttonIcon:SetTexture("Interface\\AddOns\\WowheadQuestComments\\Media\\MinimapIcon")
 buttonIcon:SetSize(20, 20)
-buttonIcon:SetPoint("CENTER")
+buttonIcon:SetPoint("CENTER", 0, 1)
 
+-- The ring sits in the top-left of this texture, so it must be anchored TOPLEFT rather than centered.
 local buttonBorder = minimapButton:CreateTexture(nil, "OVERLAY")
 buttonBorder:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-buttonBorder:SetSize(53, 53)
-buttonBorder:SetPoint("CENTER")
+buttonBorder:SetSize(50, 50)
+buttonBorder:SetPoint("TOPLEFT")
 
 local directionX = -0.70710678
 local directionY = -0.70710678

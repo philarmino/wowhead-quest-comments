@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.2.7 — 2026-10-08
+
+- Fix "Couldn't open Media/MinimapIcon.tga" error: textures are no longer listed as load files in the TOC.
+- Minimap: button uses LibDBIcon geometry so the icon sits inside the tracking ring, and shows the dedicated MinimapIcon.
+- Header divider moved up directly below the logo; comments start higher.
+- Right-clicking the QuestID or clicking the "Wowhead" footer button opens a Ctrl+A/Ctrl+C copy popup (`CopyToClipboard` is protected for addons).
+- Regenerated `Data.lua` with the latest fetched comments.
+
 ## 0.2.6 — 2026-10-08
 
 - Rebrand the visible UI to **Community Quest Comments** (addon folder and SavedVariables stay `WowheadQuestComments`).

@@ -19,13 +19,13 @@ Diagnostics use the same database as the display. A missing database is shown as
 
 ## Releases
 
-Pushing a version tag such as `v0.2.6` starts the [addon release workflow](.github/workflows/release.yml). It checks that the tag matches the version in `addon/WowheadQuestComments.toc` and `addon/Core.lua`, packages the committed `addon/` files into `WowheadQuestComments-v0.2.6.zip`, and attaches that ZIP to a GitHub Release. The ZIP already contains the `WowheadQuestComments/` folder, so extract it directly into `_retail_/Interface/AddOns/`.
+Pushing a version tag such as `v0.2.7` starts the [addon release workflow](.github/workflows/release.yml). It checks that the tag matches the version in `addon/WowheadQuestComments.toc` and `addon/Core.lua`, packages the committed `addon/` files into `WowheadQuestComments-v0.2.7.zip`, and attaches that ZIP to a GitHub Release. The ZIP already contains the `WowheadQuestComments/` folder, so extract it directly into `_retail_/Interface/AddOns/`.
 
 Before tagging, update both addon version strings and commit the generated `addon/Data.lua`. Then create and push an annotated tag:
 
 ```bash
-git tag -a v0.2.6 -m "Community Quest Comments 0.2.6"
-git push origin main v0.2.6
+git tag -a v0.2.7 -m "Community Quest Comments 0.2.7"
+git push origin main v0.2.7
 ```
 
 The workflow can also be rerun manually for an existing tag. GitHub adds its own source-code archives to every release; the addon ZIP is the only uploaded release asset.
