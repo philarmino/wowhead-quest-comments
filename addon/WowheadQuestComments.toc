@@ -2,7 +2,7 @@
 ## Title: Community Quest Comments
 ## Notes: Shows useful community quest comments for the active quest
 ## Author: m4rv & philarmino
-## Version: 0.2.7
+## Version: 0.2.8
 ## SavedVariables: WowheadQuestCommentsSettings
 ## IconTexture: Interface\AddOns\WowheadQuestComments\Media\MinimapIcon
 

@@ -152,7 +152,7 @@ assert(context():find('No active quest',1,true))
 local messages, originalPrint = {}, print
 print = function(text) messages[#messages+1] = text end
 run('debug 13943')
-assert(messages[1]:find('Core 0.2.7',1,true))
+assert(messages[1]:find('Core 0.2.8',1,true))
 assert(messages[1]:find(ns.dataBuild,1,true))
 local numericKeys = 0
 for _ in pairs(db) do numericKeys = numericKeys + 1 end

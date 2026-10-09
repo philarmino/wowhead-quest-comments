@@ -1,5 +1,5 @@
 local addonName, ns = ...
-local CORE_BUILD = "0.2.7"
+local CORE_BUILD = "0.2.8"
 local settings
 
 local GOLD = "|cffffd27a"

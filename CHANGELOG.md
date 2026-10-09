@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.8 — 2026-10-09
+
 - Regenerated `Data.lua` with the latest fetched comments (`dataBuild` `7ca74f119054`, ~22,016 quests).
 
 ## 0.2.7 — 2026-10-08
