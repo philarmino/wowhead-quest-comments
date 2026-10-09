@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Regenerated `Data.lua` with the latest fetched comments (`dataBuild` `7ca74f119054`, ~22,016 quests).
+
 ## 0.2.7 — 2026-10-08
 
 - Fix "Couldn't open Media/MinimapIcon.tga" error: textures are no longer listed as load files in the TOC.
